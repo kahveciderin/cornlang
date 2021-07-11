@@ -1,6 +1,6 @@
 fun fib a:i5 b:i5 => none { # this is a sample comment
     println("$1".fmt(b)); # this too
-    if(b > 1000){
+    if(b >= 1000){
         return none;
     }
     fib(b, a + b);

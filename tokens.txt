@@ -1,3 +1,4 @@
+Token: {                        Type: bracket
 Token: fun                      Type: identifier
 Token: fib                      Type: identifier
 Token: a                        Type: identifier
@@ -52,3 +53,4 @@ Token: ,                        Type: sym
 Token: 1                        Type: number
 Token: )                        Type: bracket
 Token: ;                        Type: semi
+Token: }                        Type: bracket
