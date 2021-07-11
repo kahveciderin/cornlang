@@ -1,0 +1,12 @@
+fun (i5 a, i5 b) => fib => none { # this is a sample comment
+    println("$1" % (b)); # this too
+    if(b > 1000){
+        return none;
+    }
+    fib(b, a + b);
+}
+
+fun () => main => none {
+    println("1");
+    fib(1, 1);
+}
