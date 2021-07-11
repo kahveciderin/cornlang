@@ -71,6 +71,10 @@ for line in fcon:
                         fullstr = ""
                     elif c in ['(', ')', '[', ']', '{', '}']:
                         tokens.append({'token': c, 'type': 'bracket'})
+                    elif c == '$':
+                        tokens.append({'token': c, 'type': 'formatter'})
+                    # elif c in ['+', '-', '*', '/', '^', '~', '%', '!']:
+                    #     tokens.append({'token': c, 'type': 'math'})
                     elif c == ';':
                         tokens.append({'token': c, 'type': 'semi'})
                     elif c == '#':
@@ -87,3 +91,38 @@ for line in fcon:
 print("\n".join(["Token: {}\t\t\tType: {}".format(x["token"], x["type"]) for x in tokens]))
 
 # tokenization done, time for lexing!
+
+errors = []
+ast = {
+    'globals': {},
+    'funcs': {}
+}
+
+
+ti = 0
+
+while ti < len(tokens):
+    token = tokens[ti]
+    if token["type"] == 'identifier':
+        if token["token"] == "fun": # function definition
+            ti += 1
+            function_name = tokens[ti]["token"]
+            if tokens[ti]["type"] == "identifier":
+                errors.append("Expected identifier as function name, got {}".format(tokens[ti]["type"]))
+            ti += 1
+            function_arguments = []
+            function_return = ""
+            while tokens[ti]["token"] != '=>': # TODO: check for EOF
+                arg_name = tokens[ti]["token"]
+                ti += 1
+                if tokens[ti]["token"] != ':':
+                    errors.append("Expected seperator in function argument '{}': did you mean to call {}?".format(arg_name, function_name))
+                ti += 1
+                arg_type = tokens[ti]["token"]
+                ti += 1
+                function_arguments.append({'name': arg_name, 'type': arg_type})
+            ti += 1
+            function_return = tokens[ti]["token"]
+            ti += 1
+
+            print(function_name, function_arguments, function_return)

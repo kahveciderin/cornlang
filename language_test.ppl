@@ -1,12 +1,10 @@
-fun (i5 a, i5 b) => fib => none { # this is a sample comment
-    println("$1" % (b)); # this too
+fun fib a:i5 b:i5 => none { # this is a sample comment
+    println("$1".fmt(b)); # this too
     if(b > 1000){
         return none;
     }
     fib(b, a + b);
 }
 
-fun () => main => none {
-    println("1");
-    fib(1, 1);
-}
+println("1");
+fib(1, 1);
