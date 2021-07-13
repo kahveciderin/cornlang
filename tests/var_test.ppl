@@ -1,0 +1,8 @@
+fun main => none {
+    var foo = "bar"
+    println(foo)
+    var a = 123
+    a += 765
+    a = a + 112
+    println("$0".fmt(a + 1))
+}

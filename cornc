@@ -11,6 +11,28 @@ import sys
 import os
 import shutil
 
+
+DEVMODE = True
+
+# SEMVER UPDATE
+# ONLY ON DEV MODE
+
+if DEVMODE:
+    try:
+        if open(sys.argv[0].strip('./') + '.old').readlines() != open(sys.argv[0].strip('./')).readlines():
+            print("Incrementing patch number by 1. If this is wrong, please manually correct .semver file.")
+            with open(sys.argv[0].strip('./') + '.semver', 'r') as svfile:
+                tx = '\n'.join(svfile.readlines())
+                print(tx)
+                major = int(tx.split('.')[0])
+                minor = int(tx.split('.')[1])
+                patch = int(tx.split('.')[2])
+                open(sys.argv[0].strip('./') + '.semver', 'w').write(str(major) + '.' + str(minor) + '.' + str(patch + 1))
+    except Exception as e:
+        open(sys.argv[0].strip('./') + '.old', 'w').write('\n'.join(open(sys.argv[0]).readlines()))
+        print("Please run me again")        
+        exit(-1)        
+
 if len(sys.argv) < 2:
     print("Wrong usage")
     exit(-1)
@@ -197,6 +219,12 @@ def compile_program(program, saveprefix):
 
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'body']
                     itt = lex_scope(copy.copy(new_scope), itt)
+                elif token["token"] == "var":  # variable definition
+                    incr_itt()
+                    if tokens[itt]["token"] in ["=", "+=", "-=", "/=", "*="]: # TODO: account for & and | and ^ and **
+                        pass
+                    else:
+                        errors.append("Could not parse variable declaration")
                 elif token["token"] == "fun":  # function definition
                     incr_itt()
                     function_name = tokens[itt]["token"]
