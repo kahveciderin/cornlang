@@ -1,0 +1,358 @@
+#!/usr/bin/python3
+
+# Cornlang (codenamed "Metal") parser, tokenizer and lexer.
+
+import copy
+import traceback
+import json
+import bson
+import pickle
+import sys
+import os
+import shutil
+
+if len(sys.argv) < 2:
+    print("Wrong usage")
+    exit(-1)
+
+
+
+def compile_program(program, saveprefix):
+
+    save_prefix_comp = saveprefix + '/' + program + '/'
+    os.makedirs(save_prefix_comp)
+
+    fcon = -1
+    with open(program, 'r') as lang:
+        fcon = lang.readlines()
+
+
+    def check_id_constraints(var, c):
+        retval = c.isalpha() or c == '_'
+        if var != "":
+            retval |= c.isnumeric()
+        return retval
+
+
+    tokens = []
+
+    for line in fcon:
+        line = line.strip()
+
+        # identifier
+        fullid = ""
+
+        # number
+        fullnum = 0
+        number_base = -1  # not used
+        number_char = -1  # not used
+
+        # string
+        in_string = False
+        fullstr = ""
+        is_escaping = False
+
+        # symbol
+        fullsym = ""
+
+        # comment
+        is_comment = False
+
+        for c in line + ' ':  # make the loop go one more time after line ends
+            if is_comment:
+                break
+            oldfullsym = fullsym
+            if in_string:
+                if c == '"' and not is_escaping:
+                    in_string = False
+                    tokens.append({'token': fullstr, 'type': 'str'})
+                elif c == '\\' and not is_escaping:
+                    is_escaping = True
+                else:
+                    fullstr += c
+                    is_escaping = False
+            else:
+                if check_id_constraints(fullid, c):
+                    fullid += c
+                else:
+                    if fullid != "":
+                        tokens.append({'token': fullid, 'type': 'identifier'})
+                    fullid = ""
+
+                    if c.isnumeric():
+                        fullnum = fullnum * 10 + int(c)
+                        number_char += 1
+                        if number_char == 0:
+                            number_base = 10
+                    else:
+                        if number_char > -1:
+                            tokens.append({'token': fullnum, 'type': 'number'})
+                        number_char = -1
+                        fullnum = 0
+
+                        if c == '"':
+                            in_string = True
+                            fullstr = ""
+                        elif c in ['(', ')', '[', ']', '{', '}']:
+                            tokens.append({'token': c, 'type': 'bracket'})
+                        elif c == '$':
+                            tokens.append({'token': c, 'type': 'formatter'})
+                        # elif c in ['+', '-', '*', '/', '^', '~', '%', '!']:
+                        #     tokens.append({'token': c, 'type': 'math'})
+                        elif c == ';':
+                            tokens.append({'token': c, 'type': 'semi'})
+                        elif c == ',':
+                            tokens.append({'token': c, 'type': 'sep'})
+                        elif c == '#':
+                            is_comment = True
+                        else:
+                            if not c.isspace():
+                                # is symbol
+                                fullsym += c
+            if oldfullsym == fullsym:  # we haven't added a token somewhere
+                if not fullsym.isspace() and fullsym != '':
+                    tokens.append({'token': fullsym, 'type': 'sym'})
+                    fullsym = ""
+
+
+    # tokenization done, time for lexing!
+
+    errors = []
+
+
+    def error_out():
+        if(len(errors) > 0):
+            print("\n".join(errors))
+            exit(-1)
+
+
+    ast = {
+        'globals': {},
+        'body': {}
+    }
+
+
+    def set_ast_scope(scope, val):
+        nscope = copy.copy(scope)
+        # print("scope:", nscope, "ast:", ast)
+        cur_d = ast
+        for v in scope[:-1]:
+            if type(cur_d) is dict:
+                cur_d.setdefault(v, {})
+            cur_d = cur_d[v]
+        cur_d[scope[-1]] = val
+
+
+    def append_ast_scope(scope, val):
+        nscope = scope
+        # print("scope:", nscope, "ast:", ast)
+        cur_d = ast
+        for v in nscope[:-1]:
+            if type(cur_d) is dict:
+                cur_d.setdefault(v, {})
+            cur_d = cur_d[v]
+        cur_d[nscope[-1]].append(val)
+
+
+    def get_ast_scope(scope):
+        accumulator = copy.copy(ast)
+        for elem in scope:
+            accumulator = accumulator[elem]
+        return accumulator
+
+    # returns itt after incrementing - itt should point to the first opening curly bracket
+
+
+    def lex_scope(scope, itt, entr='{}', is_argp=False):
+
+        def incr_itt(cnt=1):
+            nonlocal itt
+            itt += cnt
+            if itt >= len(tokens):
+                errors.append("Premature end-of-file detected, terminating...")
+                error_out()
+
+        scope_checker = 1 if is_argp else 0
+
+        itt_entr = copy.copy(itt)
+
+        print("CHECK SCOPE =>", scope, "itt", itt +
+            1, "symbol", tokens[itt + 1]["token"])
+
+        while True:
+            incr_itt()  # get next token
+            # print("scope", scope, "itt", itt, "char", tokens[itt]["token"])
+            token = tokens[itt]
+            if token["type"] == 'identifier':
+                if token["token"] == "if":  # if statement
+                    append_ast_scope(scope, {
+                        'act': 'statement',
+                        'name': token["token"],
+                        'args': [],  # TODO: Add recursive arguments parsing
+                        'body': []
+                    })
+
+                    new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
+                    itt = lex_scope(new_scope, itt, '()')
+
+                    new_scope = scope + [len(get_ast_scope(scope)) - 1, 'body']
+                    itt = lex_scope(copy.copy(new_scope), itt)
+                elif token["token"] == "fun":  # function definition
+                    incr_itt()
+                    function_name = tokens[itt]["token"]
+                    if tokens[itt]["type"] != "identifier":
+                        errors.append("Expected identifier as function name, got {}".format(
+                            tokens[itt]["type"]))
+                    incr_itt()
+                    function_arguments = []
+                    function_return = ""
+                    while tokens[itt]["token"] != '=>':  # TODO: check for EOF
+                        if tokens[itt]["token"] == ',':
+                            incr_itt()
+                            continue
+                        arg_name = tokens[itt]["token"]
+                        incr_itt()
+                        if tokens[itt]["token"] != ':':
+                            errors.append("Expected seperator in function argument '{}': did you mean to call {}?".format(
+                                arg_name, function_name))
+                        incr_itt()
+                        arg_type = tokens[itt]["token"]
+                        incr_itt()
+                        function_arguments.append(
+                            {'name': arg_name, 'type': arg_type})  # no need to lex this recursively
+                    incr_itt()
+                    function_return = tokens[itt]["token"]
+
+                    set_ast_scope(scope + [function_name], {
+                        'name': function_name,
+                        'args': function_arguments,
+                        'return': function_return,
+                        'body': []
+                    })
+
+                    new_scope = scope + [function_name, 'body']
+                    itt = lex_scope(copy.copy(new_scope), itt)
+
+                    print("FUNCTION => ", function_name,
+                        function_arguments, function_return, "itt:", itt)
+                elif tokens[itt + 1]["token"] == "(":  # function call
+                    self_function = tokens[itt - 1]["token"] == '.'
+                    selfarg = ""
+                    if self_function:
+                        selfarg = get_ast_scope(
+                            scope)[len(get_ast_scope(scope)) - 1]
+                        set_ast_scope(scope, get_ast_scope(scope)[:-1])
+                    print("SELFARG", selfarg)
+                    print("{}FUNCTION CALL".format(
+                        "SELF " if self_function else ""), token["token"])
+                    append_ast_scope(scope, {
+                        'act': 'call',
+                        'name': token["token"],
+                        # TODO: Add recursive arguments parsing
+                        # TODO: Add self argument
+                        'args': [selfarg if self_function else {'act': 'const', 'type': 'none', 'value': ''}] + []
+                    })
+                    new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
+                    while tokens[itt]["token"] != ')':
+                        itt = lex_scope(new_scope, itt, '()', True)
+                else:  # should be a variable
+                    append_ast_scope(scope, {
+                        'act': 'getvar',
+                        'name': token["token"]
+                    })
+            elif token["type"] == 'number':
+                append_ast_scope(scope, {
+                    'act': 'const',
+                    'type': 'number',
+                    'val': token["token"]
+                })
+            elif token["type"] == 'str':
+                append_ast_scope(scope, {
+                    'act': 'const',
+                    'type': 'str',
+                    'val': token["token"]
+                })
+            elif token["type"] == 'bracket':
+                # print("bracket itt", itt, "char", tokens[itt]["token"])
+                # print("entr", entr)
+                if token["token"] == '(':
+                    # print("itt_entr", itt_entr, "itt", itt, token)
+                    if itt_entr + 1 != itt:
+                        # print("well, going in!")
+                        append_ast_scope(scope, {
+                            'act': 'expr',
+                            'val': []
+                        })
+                        new_scope = scope + [len(get_ast_scope(scope)) - 1, 'val']
+                        itt = lex_scope(new_scope, itt - 1, '()')
+                    else:
+                        print(
+                            "not going in, this is the reason we came here in the first place")
+                elif token["token"] == entr[1]:
+                    # scope_checker -= 1
+                    # if scope_checker == 0:
+                    #     break  # break out of the loop, scope end reached
+                    break
+                elif token["token"] == entr[0]:
+                    scope_checker += 1
+            elif token["type"] == 'sym':
+                # TODO: add support for negative values
+                if token["token"] in ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||']:
+                    currarg = get_ast_scope(
+                        scope)[len(get_ast_scope(scope)) - 1]
+                    set_ast_scope(scope, get_ast_scope(scope)[:-1])
+                    append_ast_scope(scope, {
+                        'act': 'oper',
+                        'args': [
+                            currarg
+                        ],
+                        'val': token["token"]
+                    })
+                    # print("check next argument itt", itt)
+                    new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
+                    itt = lex_scope(new_scope, itt, '()', True)
+                    itt -= 1
+                    # print("Ended operation itt", itt, "char", tokens[itt]["token"])
+            if is_argp:
+                if token["token"] in [",", ".", ")"]:
+                    break  # argument parsing done
+        print("END SCOPE =>", scope, "itt", itt, "symbol", tokens[itt]["token"])
+        return itt
+
+
+    ti = -1
+
+
+    tokens = [{'token': '{', 'type': 'bracket'}] + tokens
+    tokens.append({'token': '}', 'type': 'bracket'})
+
+    open(save_prefix_comp + "tokens.txt", "w").write("\n".join(["Token: {}\t\t\tType: {}".format(
+        x["token"], x["type"]) for x in tokens]))  # debug
+
+    try:
+        lex_scope(['body'], ti)
+        error_out()
+        open(save_prefix_comp + "ast.json", "w").write(json.dumps(
+            ast, indent=2, sort_keys=False))  # debug
+
+        # testing different file formats
+        open(save_prefix_comp + "program.bson", "wb").write(bson.BSON.encode(ast))
+        pickle.dump(ast, open(save_prefix_comp + "program.pck", "wb"))
+    except Exception as e:
+        traceback.print_exc()
+        print("Exception has occured:", e)
+        print("Dumping ast to ast_err.json")
+        open(save_prefix_comp + "ast_err.json", "w").write(json.dumps(
+            ast, indent=2, sort_keys=False))  # debug
+
+
+if sys.argv[1] == 'test':
+    if len(sys.argv) < 3:
+        print("Wrong usage")
+        exit(-1)
+    saveprefix = sys.argv[2]
+    programs = os.listdir('tests/')
+    if os.path.isdir(saveprefix):
+        shutil.rmtree(saveprefix)
+    for program in programs:
+        compile_program('tests/' + program, saveprefix)

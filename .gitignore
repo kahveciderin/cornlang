@@ -33,3 +33,6 @@
 
 # Cache
 .ccls-cache
+
+# test output
+testout/
