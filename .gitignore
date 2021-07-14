@@ -37,4 +37,8 @@
 # test output
 testout/
 
+.coverage
+
 *.old
+
+htmlcov/

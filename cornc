@@ -119,8 +119,8 @@ def compile_program(program, saveprefix):
                             fullstr = ""
                         elif c in ['(', ')', '[', ']', '{', '}']:
                             tokens.append({'token': c, 'type': 'bracket'})
-                        elif c == '$':
-                            tokens.append({'token': c, 'type': 'formatter'})
+                        # elif c == '$':
+                        #     tokens.append({'token': c, 'type': 'formatter'})
                         # elif c in ['+', '-', '*', '/', '^', '~', '%', '!']:
                         #     tokens.append({'token': c, 'type': 'math'})
                         elif c == ';':
