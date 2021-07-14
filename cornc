@@ -20,27 +20,31 @@ DEVMODE = True
 if DEVMODE:
     try:
         if open(sys.argv[0].strip('./') + '.old').readlines() != open(sys.argv[0].strip('./')).readlines():
-            print("Incrementing patch number by 1. If this is wrong, please manually correct .semver file.")
+            print(
+                "Incrementing patch number by 1. If this is wrong, please manually correct .semver file.")
             with open(sys.argv[0].strip('./') + '.semver', 'r') as svfile:
                 tx = '\n'.join(svfile.readlines())
                 print(tx)
                 major = int(tx.split('.')[0])
                 minor = int(tx.split('.')[1])
                 patch = int(tx.split('.')[2])
-                open(sys.argv[0].strip('./') + '.semver', 'w').write(str(major) + '.' + str(minor) + '.' + str(patch + 1))
+                open(sys.argv[0].strip(
+                    './') + '.semver', 'w').write(str(major) + '.' + str(minor) + '.' + str(patch + 1))
     except Exception as e:
-        open(sys.argv[0].strip('./') + '.old', 'w').write('\n'.join(open(sys.argv[0]).readlines()))
-        print("Please run me again")        
-        exit(-1)        
+        open(sys.argv[0].strip('./') + '.old',
+             'w').write(''.join(open(sys.argv[0]).readlines()))
+        print("Please run me again")
+        exit(-1)
+    open(sys.argv[0].strip('./') + '.old',
+         'w').write(''.join(open(sys.argv[0]).readlines()))
 
 if len(sys.argv) < 2:
     print("Wrong usage")
     exit(-1)
 
 
-
 def compile_program(program, saveprefix):
-
+    print("\n\n\nCompiling", program)
     save_prefix_comp = saveprefix + '/' + program + '/'
     os.makedirs(save_prefix_comp)
 
@@ -48,13 +52,11 @@ def compile_program(program, saveprefix):
     with open(program, 'r') as lang:
         fcon = lang.readlines()
 
-
     def check_id_constraints(var, c):
         retval = c.isalpha() or c == '_'
         if var != "":
             retval |= c.isnumeric()
         return retval
-
 
     tokens = []
 
@@ -136,23 +138,22 @@ def compile_program(program, saveprefix):
                     tokens.append({'token': fullsym, 'type': 'sym'})
                     fullsym = ""
 
-
     # tokenization done, time for lexing!
 
     errors = []
 
-
     def error_out():
         if(len(errors) > 0):
             print("\n".join(errors))
+            print("Dumping ast to " + save_prefix_comp + "ast_err.json")
+            open(save_prefix_comp + "ast_err.json", "w").write(json.dumps(
+                ast, indent=2, sort_keys=False))  # debug
             exit(-1)
-
 
     ast = {
         'globals': {},
         'body': {}
     }
-
 
     def set_ast_scope(scope, val):
         nscope = copy.copy(scope)
@@ -164,7 +165,6 @@ def compile_program(program, saveprefix):
             cur_d = cur_d[v]
         cur_d[scope[-1]] = val
 
-
     def append_ast_scope(scope, val):
         nscope = scope
         # print("scope:", nscope, "ast:", ast)
@@ -175,7 +175,6 @@ def compile_program(program, saveprefix):
             cur_d = cur_d[v]
         cur_d[nscope[-1]].append(val)
 
-
     def get_ast_scope(scope):
         accumulator = copy.copy(ast)
         for elem in scope:
@@ -184,8 +183,7 @@ def compile_program(program, saveprefix):
 
     # returns itt after incrementing - itt should point to the first opening curly bracket
 
-
-    def lex_scope(scope, itt, entr='{}', is_argp=False):
+    def lex_scope(scope, itt, entr='{}', is_argp=0):
 
         def incr_itt(cnt=1):
             nonlocal itt
@@ -194,15 +192,18 @@ def compile_program(program, saveprefix):
                 errors.append("Premature end-of-file detected, terminating...")
                 error_out()
 
-        scope_checker = 1 if is_argp else 0
+        scope_checker = 1 if is_argp != 0 else 0
+
+        last_seen_op = -1
 
         itt_entr = copy.copy(itt)
 
         print("CHECK SCOPE =>", scope, "itt", itt +
-            1, "symbol", tokens[itt + 1]["token"])
+              1, "symbol", tokens[itt + 1]["token"], "parsemode", is_argp)
 
         while True:
             incr_itt()  # get next token
+            print("CURRENT TOKEN =>", tokens[itt], "ITT", itt)
             # print("scope", scope, "itt", itt, "char", tokens[itt]["token"])
             token = tokens[itt]
             if token["type"] == 'identifier':
@@ -221,8 +222,17 @@ def compile_program(program, saveprefix):
                     itt = lex_scope(copy.copy(new_scope), itt)
                 elif token["token"] == "var":  # variable definition
                     incr_itt()
-                    if tokens[itt]["token"] in ["=", "+=", "-=", "/=", "*="]: # TODO: account for & and | and ^ and **
-                        pass
+                    incr_itt()
+                    # variable declarations and definitions should only contain =
+                    if tokens[itt]["token"] in ["="]:
+                        append_ast_scope(scope, {
+                            'act': 'vardef',
+                            'name': tokens[itt - 1]["token"],
+                            'args': [],  # TODO: Add recursive arguments parsing
+                        })
+                        new_scope = scope + \
+                            [len(get_ast_scope(scope)) - 1, 'args']
+                        itt = lex_scope(new_scope, itt, '()', 2)
                     else:
                         errors.append("Could not parse variable declaration")
                 elif token["token"] == "fun":  # function definition
@@ -262,7 +272,7 @@ def compile_program(program, saveprefix):
                     itt = lex_scope(copy.copy(new_scope), itt)
 
                     print("FUNCTION => ", function_name,
-                        function_arguments, function_return, "itt:", itt)
+                          function_arguments, function_return, "itt:", itt)
                 elif tokens[itt + 1]["token"] == "(":  # function call
                     self_function = tokens[itt - 1]["token"] == '.'
                     selfarg = ""
@@ -270,7 +280,6 @@ def compile_program(program, saveprefix):
                         selfarg = get_ast_scope(
                             scope)[len(get_ast_scope(scope)) - 1]
                         set_ast_scope(scope, get_ast_scope(scope)[:-1])
-                    print("SELFARG", selfarg)
                     print("{}FUNCTION CALL".format(
                         "SELF " if self_function else ""), token["token"])
                     append_ast_scope(scope, {
@@ -284,10 +293,27 @@ def compile_program(program, saveprefix):
                     while tokens[itt]["token"] != ')':
                         itt = lex_scope(new_scope, itt, '()', True)
                 else:  # should be a variable
-                    append_ast_scope(scope, {
-                        'act': 'getvar',
-                        'name': token["token"]
-                    })
+                    # are we getting or setting?
+                    incr_itt()
+                    # TODO: account for & and | and ^ and **
+                    if tokens[itt]["token"] in ['=', "+=", "-=", "/=", "*="]:
+                        print("SETVAR")
+                        append_ast_scope(scope, {
+                            'act': 'varset',
+                            'name': tokens[itt - 1]["token"],
+                            'oper': tokens[itt]["token"],
+                            'args': [],
+                        })
+                        new_scope = scope + \
+                            [len(get_ast_scope(scope)) - 1, 'args']
+                        itt = lex_scope(new_scope, itt, '()', 2)
+                    else:  # getting
+                        print("GETVAR", itt)
+                        itt -= 1
+                        append_ast_scope(scope, {
+                            'act': 'getvar',
+                            'name': token["token"]
+                        })
             elif token["type"] == 'number':
                 append_ast_scope(scope, {
                     'act': 'const',
@@ -311,7 +337,8 @@ def compile_program(program, saveprefix):
                             'act': 'expr',
                             'val': []
                         })
-                        new_scope = scope + [len(get_ast_scope(scope)) - 1, 'val']
+                        new_scope = scope + \
+                            [len(get_ast_scope(scope)) - 1, 'val']
                         itt = lex_scope(new_scope, itt - 1, '()')
                     else:
                         print(
@@ -325,7 +352,10 @@ def compile_program(program, saveprefix):
                     scope_checker += 1
             elif token["type"] == 'sym':
                 # TODO: add support for negative values
-                if token["token"] in ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||']:
+                if token["token"] in ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||']:  # operation
+                    if is_argp == 2:
+                        last_seen_op = -1
+                    
                     currarg = get_ast_scope(
                         scope)[len(get_ast_scope(scope)) - 1]
                     set_ast_scope(scope, get_ast_scope(scope)[:-1])
@@ -338,18 +368,26 @@ def compile_program(program, saveprefix):
                     })
                     # print("check next argument itt", itt)
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
-                    itt = lex_scope(new_scope, itt, '()', True)
+                    itt = lex_scope(new_scope, itt, '()', True if is_argp == 0 else is_argp)
                     itt -= 1
                     # print("Ended operation itt", itt, "char", tokens[itt]["token"])
-            if is_argp:
-                if token["token"] in [",", ".", ")"]:
+            if is_argp != 0:
+                # semicolon required for assignments - for now anyway
+                if token["token"] in [",", ".", ")", ";"]:
                     break  # argument parsing done
-        print("END SCOPE =>", scope, "itt", itt, "symbol", tokens[itt]["token"])
+            last_seen_op += 1
+            if is_argp == 2:
+                incr_itt()
+                itt -= 1
+                print("Should I stop varset? itt", itt, "lastseen", last_seen_op, "nexttok", tokens[itt + 1]["token"])
+                if tokens[itt + 1]["token"] not in ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||'] and tokens[itt]["token"] not in ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||']:
+                    print("stopping")
+                    break
+        print("END SCOPE =>", scope, "itt", itt,
+              "symbol", tokens[itt]["token"])
         return itt
 
-
     ti = -1
-
 
     tokens = [{'token': '{', 'type': 'bracket'}] + tokens
     tokens.append({'token': '}', 'type': 'bracket'})
@@ -364,7 +402,8 @@ def compile_program(program, saveprefix):
             ast, indent=2, sort_keys=False))  # debug
 
         # testing different file formats
-        open(save_prefix_comp + "program.bson", "wb").write(bson.BSON.encode(ast))
+        open(save_prefix_comp + "program.bson",
+             "wb").write(bson.BSON.encode(ast))
         pickle.dump(ast, open(save_prefix_comp + "program.pck", "wb"))
     except Exception as e:
         traceback.print_exc()
