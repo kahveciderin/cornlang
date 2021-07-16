@@ -159,8 +159,7 @@ def compile_program(program, saveprefix):
             exit(-1)
 
     ast = {
-        'globals': {},
-        'body': {}
+        'globals': {}
     }
 
     def set_ast_scope(scope, val):
@@ -435,7 +434,7 @@ def compile_program(program, saveprefix):
         x["token"], x["type"]) for x in tokens]))  # debug
 
     try:
-        lex_scope(['body'], ti)
+        lex_scope(['globals'], ti)
         error_out()
         open(save_prefix_comp + "ast.json", "w").write(json.dumps(
             ast, indent=2, sort_keys=False))  # debug
@@ -580,12 +579,12 @@ def run_program(program):
                     manage_return_value(accum_str)
                 else:  # call non-builtin function
                     args_list = [x["name"]
-                                            for x in get_ast_scope(['body', instr["name"], 'args'])]
+                                            for x in get_ast_scope(['globals', instr["name"], 'args'])]
                     vars_pass = {}
                     for iters, farg in enumerate(args_list):
                         vars_pass[farg] = function_args[iters]
                     manage_return_value(recursive_run(
-                        ['body', instr["name"], 'body'], vars_pass))
+                        ['globals', instr["name"], 'body'], vars_pass))
             elif instr["act"] == "getvar":
                 manage_return_value(get_var(instr["name"])["value"])
             elif instr["act"] == "expr":
@@ -611,7 +610,7 @@ def run_program(program):
         var_arr.pop()
         return return_values if arg_parse else return_value
         
-    recursive_run(['body', 'main', 'body'], DEFAULT_CONSTANTS)
+    recursive_run(['globals', 'main', 'body'], DEFAULT_CONSTANTS)
 
 
 if sys.argv[1] == 'test':
