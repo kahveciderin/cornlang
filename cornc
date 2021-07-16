@@ -10,6 +10,12 @@ import pickle
 import sys
 import os
 import shutil
+from inspect import getframeinfo, stack
+
+def debuginfo(message):
+    caller = getframeinfo(stack()[2][0])
+    print("%s:%d - %s" % (caller.filename, caller.lineno, message)) # python3 syntax print
+    # print(getframeinfo(stack()[2][0]))
 
 
 DEVMODE = True
@@ -200,10 +206,11 @@ def compile_program(program, saveprefix):
 
         print("CHECK SCOPE =>", scope, "itt", itt +
               1, "symbol", tokens[itt + 1]["token"], "parsemode", is_argp)
-
+        debuginfo("Scope call location")
         while True:
             incr_itt()  # get next token
-            print("CURRENT TOKEN =>", tokens[itt], "ITT", itt)
+            print("CURRENT TOKEN =>", tokens[itt], "ITT", itt, "ENTR", entr)
+            debuginfo("Scope call location")
             # print("scope", scope, "itt", itt, "char", tokens[itt]["token"])
             token = tokens[itt]
             if token["type"] == 'identifier':
@@ -216,7 +223,7 @@ def compile_program(program, saveprefix):
                     })
 
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
-                    itt = lex_scope(new_scope, itt, '()')
+                    itt = lex_scope(new_scope, itt, '()', True)
 
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'body']
                     itt = lex_scope(copy.copy(new_scope), itt)
@@ -287,7 +294,7 @@ def compile_program(program, saveprefix):
                         'name': token["token"],
                         # TODO: Add recursive arguments parsing
                         # TODO: Add self argument
-                        'args': [selfarg if self_function else {'act': 'const', 'type': 'none', 'value': ''}] + []
+                        'args': [selfarg if self_function else {'act': 'const', 'type': 'none', 'val': ''}] + []
                     })
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
                     while tokens[itt]["token"] != ')':
@@ -369,11 +376,11 @@ def compile_program(program, saveprefix):
                     # print("check next argument itt", itt)
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
                     itt = lex_scope(new_scope, itt, '()', True if is_argp == 0 else is_argp)
-                    itt -= 1
+                    # itt -= 1
                     # print("Ended operation itt", itt, "char", tokens[itt]["token"])
             if is_argp != 0:
-                # semicolon required for assignments - for now anyway
-                if token["token"] in [",", ".", ")", ";"]:
+                print("CHECK TOKEN IS", tokens[itt]["token"], token["token"], "ITT", itt, "is_argp", is_argp, "entr", entr)
+                if tokens[itt]["token"] in [",", ".", ")"]:
                     break  # argument parsing done
             last_seen_op += 1
             if is_argp == 2:
@@ -413,6 +420,129 @@ def compile_program(program, saveprefix):
             ast, indent=2, sort_keys=False))  # debug
 
 
+def run_program(program):
+    prog_cnt = pickle.load(open(program, "rb"))
+    print("\n\n\nRunning", program)
+
+    DEFAULT_CONSTANTS = {
+        'null': None
+    }
+    def get_ast_scope(scope):
+        accumulator = copy.copy(prog_cnt)
+        for elem in scope:
+            accumulator = accumulator[elem]
+        return accumulator
+    
+
+    stop_function = False
+    value_function = None
+    def recursive_run(scope, vars_s = {}, multiple_do = "=", arg_parse = False):
+        nonlocal stop_function
+        nonlocal value_function
+        instrs = get_ast_scope(scope)
+        var_arr = vars_s
+        return_values = []
+        return_value = None
+
+        def manage_return_value(value):
+            nonlocal return_value
+            if return_value != None:
+                if multiple_do == '=':
+                    return_value = value
+                elif multiple_do == '+':
+                    return_value += value
+                elif multiple_do == '-':
+                    return_value -= value
+                elif multiple_do == '*':
+                    return_value *= value
+                elif multiple_do == '/':
+                    return_value /= value
+                elif multiple_do == '<':
+                    return_value = value > return_value
+                elif multiple_do == '>':
+                    return_value = value < return_value
+                elif multiple_do == '==':
+                    return_value = value == return_value
+                elif multiple_do == '>=':
+                    return_value = value <= return_value
+                elif multiple_do == '<=':
+                    return_value = value >= return_value
+                elif multiple_do == '&&':
+                    return_value = value and return_value
+                elif multiple_do == '||':
+                    return_value = value or return_value
+            else:
+                return_value = value
+
+        for i, instr in enumerate(instrs):
+            if stop_function:
+                if len(scope) == 3:
+                    stop_function = False
+                return_value = value_function # explicity set this because we are returning from the function
+                break
+            # print("vars", var_arr)
+            if instr["act"] == "vardef":
+                var_arr[instr["name"]] = recursive_run(scope + [i, 'args'], var_arr) # variable definitions return -1 because it is not allowed to chain variable definitions
+            elif instr["act"] == "varset":
+                if instr["oper"] == '=':
+                    var_arr[instr["name"]] = recursive_run(scope + [i, 'args'], var_arr)
+                elif instr["oper"] == '+=':
+                    var_arr[instr["name"]] += recursive_run(scope + [i, 'args'], var_arr)
+                elif instr["oper"] == '-=':
+                    var_arr[instr["name"]] -= recursive_run(scope + [i, 'args'], var_arr)
+                elif instr["oper"] == '/=':
+                    var_arr[instr["name"]] /= recursive_run(scope + [i, 'args'], var_arr)
+                elif instr["oper"] == '*=':
+                    var_arr[instr["name"]] *= recursive_run(scope + [i, 'args'], var_arr)
+                else:
+                    var_arr[instr["name"]] = recursive_run(scope + [i, 'args'], var_arr) # this is an error but who cares
+            elif instr["act"] == "const":
+                manage_return_value(instr["val"])
+            elif instr["act"] == "oper":
+                # print("scope", scope, "val", instr["val"])
+                manage_return_value(recursive_run(scope + [i, 'args'], var_arr, instr["val"]))
+            elif instr["act"] == "call":
+                function_args = recursive_run(scope + [i, 'args'], var_arr, arg_parse = True) # 0 is selfarg
+                if instr["name"] == "println":
+                    print(function_args[1])
+                elif instr["name"] == "print":
+                    print(function_args[1], end="")
+                elif instr["name"] == "fmt":
+                    accum_str = function_args[0]
+                    for fmt_i in range(1, len(function_args)):
+                        accum_str = accum_str.replace('$' + str(fmt_i - 1), str(function_args[fmt_i]))
+                    manage_return_value(accum_str)
+                elif instr["name"] == "return":
+                    stop_function = True
+                    value_function = function_args[1]
+                    break
+                else: # call non-builtin function
+                    # TODO: add non-builtin funciton calling
+                    args_list = ['this'] + [x["name"] for x in get_ast_scope(['body', instr["name"], 'args'])]
+                    vars_pass = {}
+                    for iters, farg in enumerate(args_list):
+                        vars_pass[farg] = function_args[iters]
+                    manage_return_value(recursive_run(['body', instr["name"], 'body'], {**vars_pass, **DEFAULT_CONSTANTS}))
+            elif instr["act"] == "getvar":
+                manage_return_value(var_arr[instr["name"]])
+            elif instr["act"] == "expr":
+                manage_return_value(recursive_run(scope + [i, 'val'], var_arr, arg_parse = True)[0])
+            elif instr["act"] == "statement":
+                stat_args = recursive_run(scope + [i, 'args'], var_arr, arg_parse = True)
+                if instr["name"] == "if":
+                    if stat_args[0]:
+                        print("vars before run:", var_arr, "scope:", scope + [i, 'body'])
+                        recursive_run(scope + [i, 'body'], var_arr)
+                        print("vars after run:", var_arr)
+
+
+
+            if arg_parse:
+                return_values.append(return_value)
+
+        return return_values if arg_parse else return_value
+    recursive_run(['body', 'main', 'body'], DEFAULT_CONSTANTS)
+
 if sys.argv[1] == 'test':
     if len(sys.argv) < 3:
         print("Wrong usage")
@@ -423,3 +553,5 @@ if sys.argv[1] == 'test':
         shutil.rmtree(saveprefix)
     for program in programs:
         compile_program('tests/' + program, saveprefix)
+    for program in programs:
+        run_program(saveprefix + '/tests/' + program + '/program.pck')
