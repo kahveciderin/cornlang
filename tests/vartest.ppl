@@ -6,4 +6,9 @@ fun main => none {
     a = a + 112
     print("print test: ")
     println("$0".fmt(a + 9000))
+
+    if(a > 100){
+        a += 10000000
+    }
+    println("$0".fmt(a))
 }
