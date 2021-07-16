@@ -1,5 +1,5 @@
 fun main => none {
-    var foo = "foo" + "bar"
+    var foo = "foo" + "bar" + "buzz"
     println(foo)
     var a = 123
     a += 765

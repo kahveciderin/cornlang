@@ -220,7 +220,7 @@ def compile_program(program, saveprefix):
                     append_ast_scope(scope, {
                         'act': 'statement',
                         'name': token["token"],
-                        'args': [],  # TODO: Add recursive arguments parsing
+                        'args': [],
                         'body': []
                     })
 
@@ -229,6 +229,15 @@ def compile_program(program, saveprefix):
 
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'body']
                     itt = lex_scope(copy.copy(new_scope), itt)
+                elif token["token"] == "return":
+                    append_ast_scope(scope, {
+                        'act': 'statement',
+                        'name': token["token"],
+                        'args': []
+                    })
+                    
+                    new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
+                    itt = lex_scope(new_scope, itt, '()', True)
                 elif token["token"] == "var":  # variable definition
                     incr_itt()
                     incr_itt()
@@ -237,7 +246,7 @@ def compile_program(program, saveprefix):
                         append_ast_scope(scope, {
                             'act': 'vardef',
                             'name': tokens[itt - 1]["token"],
-                            'args': [],  # TODO: Add recursive arguments parsing
+                            'args': [],
                         })
                         new_scope = scope + \
                             [len(get_ast_scope(scope)) - 1, 'args']
@@ -253,7 +262,7 @@ def compile_program(program, saveprefix):
                     incr_itt()
                     function_arguments = []
                     function_return = ""
-                    while tokens[itt]["token"] != '=>':  # TODO: check for EOF
+                    while tokens[itt]["token"] != '=>':
                         if tokens[itt]["token"] == ',':
                             incr_itt()
                             continue
@@ -294,9 +303,7 @@ def compile_program(program, saveprefix):
                     append_ast_scope(scope, {
                         'act': 'call',
                         'name': token["token"],
-                        # TODO: Add recursive arguments parsing
-                        # TODO: Add self argument
-                        'args': [selfarg if self_function else {'act': 'const', 'type': 'none', 'val': ''}] + []
+                        'args': [selfarg] if self_function else []
                     })
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
                     while tokens[itt]["token"] != ')':
@@ -352,9 +359,29 @@ def compile_program(program, saveprefix):
                     else:
                         print(
                             "not going in, this is the reason we came here in the first place")
+                elif token["token"] == '[':
+                    if tokens[itt - 1]["type"] == 'sym': # we are defining an array
+                        append_ast_scope(scope, {
+                            'act': 'arrset',
+                            'args': []
+                        })
+                        new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
+                        while tokens[itt]["token"] != ']':
+                            itt = lex_scope(new_scope, itt, '[]', True)
+                    else: # we are indexing an array
+                        old_stat_place = get_ast_scope(scope + [len(get_ast_scope(scope)) - 2])
+                        set_ast_scope(scope, get_ast_scope(scope)[:-1])
+                        append_ast_scope(scope, {
+                            'act': 'arrget',
+                            'body': [old_stat_place],
+                            'args': []
+                        })
+                        
+                        new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
+                        itt = lex_scope(new_scope, itt, '[]', True)
                 elif token["token"] == entr[1]:
                     # scope_checker -= 1
-                    # if scope_checker == 0:
+                    # if scope_chnew_scope_setecker == 0:
                     #     break  # break out of the loop, scope end reached
                     break
                 elif token["token"] == entr[0]:
@@ -542,22 +569,17 @@ def run_program(program):
                 function_args = recursive_run(
                     scope + [i, 'args'], arg_parse=True)  # 0 is selfarg
                 if instr["name"] == "println":
-                    print(function_args[1])
+                    print(function_args[0])
                 elif instr["name"] == "print":
-                    print(function_args[1], end="")
+                    print(function_args[0], end="")
                 elif instr["name"] == "fmt":
                     accum_str = function_args[0]
                     for fmt_i in range(1, len(function_args)):
                         accum_str = accum_str.replace(
                             '$' + str(fmt_i - 1), str(function_args[fmt_i]))
                     manage_return_value(accum_str)
-                elif instr["name"] == "return":
-                    stop_function = True
-                    value_function = function_args[1]
-                    break
                 else:  # call non-builtin function
-                    # TODO: add non-builtin funciton calling
-                    args_list = ['this'] + [x["name"]
+                    args_list = [x["name"]
                                             for x in get_ast_scope(['body', instr["name"], 'args'])]
                     vars_pass = {}
                     for iters, farg in enumerate(args_list):
@@ -574,6 +596,14 @@ def run_program(program):
                 if instr["name"] == "if":
                     if stat_args[0]:
                         recursive_run(scope + [i, 'body'])
+                elif instr["name"] == "return":
+                    stop_function = True
+                    value_function = stat_args[0] if len(stat_args) > 0 else None 
+                    break
+            elif instr["act"] == "arrset":
+                manage_return_value(recursive_run(scope + [i, 'args'], arg_parse=True))
+            elif instr["act"] == "arrget":
+                manage_return_value(recursive_run(scope + [i, 'body'])[recursive_run(scope + [i, 'args'], arg_parse=True)[0]])
 
             if arg_parse:
                 return_values.append(return_value)
