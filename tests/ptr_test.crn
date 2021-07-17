@@ -1,22 +1,2 @@
 fun main => none {
-
-    var i5 val_pointer_0 = 0
-    var i5 val_pointer_1 = 0
-    var i5 val_pointer_2 = 0
-    if(true){
-        if(true){
-            glvar str val_inside = "hello world";
-            glvar str val_inside_2 = "asdf";
-            glvar str val_inside_3 = "val2";
-            val_pointer_0 = ptr("val_inside")
-            val_pointer_1 = ptr("val_inside_2")
-            val_pointer_2 = ptr("val_inside_3")
-        }
-    }
-    println("Pointer 0: $0".fmt(val_pointer_0))
-    println("Pointer value 0: $0".fmt(deref(val_pointer_0)))
-    println("Pointer 1: $0".fmt(val_pointer_1))
-    println("Pointer value 1: $0".fmt(deref(val_pointer_1)))
-    println("Pointer 2: $0".fmt(val_pointer_2))
-    println("Pointer value 2: $0".fmt(deref(val_pointer_2)))
 }

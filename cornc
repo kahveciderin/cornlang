@@ -769,17 +769,18 @@ def run_program(program):
     recursive_run(['globals', 'main', 'body'], DEFAULT_CONSTANTS)
 
 
-# cliargsparser = argparse.ArgumentParser(description="Corncomb (cornc for short) is an interpreter, tokenizer, lexical analyser and compiler for the language Cornlang", formatter_class=argparse.RawTextHelpFormatter)
+cliargsparser = argparse.ArgumentParser(description="Corncomb (cornc for short) is an interpreter, tokenizer, lexical analyser and compiler for the language Cornlang", formatter_class=argparse.RawTextHelpFormatter)
 
-# cliargsparser.add_argument('-a', '--act', help="The action to execute\n\tAvailable actions are:\n\t\ttest\n\t\tinterpret")
-# cliargsparser.add_argument('-f', '--file', help="Input filename")
-# cliargsparser.add_argument('-o', '--output', help="Output folder name")
-# cliargs = cliargsparser.parse_args()
-if sys.argv[1] == 'test':
-    if len(sys.argv) < 3:
+cliargsparser.add_argument('act', help="The action to execute\n\tAvailable actions are:\n\t\ttest\n\t\trun\n\t\tast")
+cliargsparser.add_argument('-f', '--file', help="Input filename")
+cliargsparser.add_argument('-o', '--output', help="Output folder name")
+cliargs = cliargsparser.parse_args()
+
+if cliargs.act == 'test':
+    if not cliargs.output:
         print("Wrong usage")
         exit(-1)
-    saveprefix = sys.argv[2]
+    saveprefix = cliargs.output
     programs = os.listdir('tests/')
     if os.path.isdir(saveprefix):
         shutil.rmtree(saveprefix)
@@ -787,3 +788,20 @@ if sys.argv[1] == 'test':
         compile_program('tests/' + program, saveprefix)
     for program in programs:
         run_program(saveprefix + '/tests/' + program + '/program.pck')
+elif cliargs.act == 'run':
+    if not cliargs.output:
+        print("Wrong usage")
+        exit(-1)
+    if not cliargs.file:
+        print("Wrong usage")
+        exit(-1)
+    compile_program(cliargs.file, cliargs.output)
+    run_program(cliargs.output + '/' + cliargs.file + '/program.pck')
+elif cliargs.act == 'ast':
+    if not cliargs.output:
+        print("Wrong usage")
+        exit(-1)
+    if not cliargs.file:
+        print("Wrong usage")
+        exit(-1)
+    compile_program(cliargs.file, cliargs.output)
