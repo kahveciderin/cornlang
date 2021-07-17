@@ -1,0 +1,5 @@
+glb i5 global_variable = "hello world"
+
+fun main => none {
+    println(global_variable)
+}

@@ -1,11 +1,11 @@
 fun main => {
-    var a = 0
+    var i5 a = 0
     while(a < 10){
         a += 1
         println("New 'a' value: $0".fmt(a))
     }
     println("End while loop")
-    var b = ["hello", "world", "asdf"]
+    lst str b = ["hello", "world", "asdf"]
     foreach(b, "element"){
         println("Loop element: $0".fmt(element))
     }

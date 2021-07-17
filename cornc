@@ -229,7 +229,7 @@ def compile_program(program, saveprefix):
 
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'body']
                     itt = lex_scope(copy.copy(new_scope), itt)
-                elif token["token"] in ['ptr', 'return', 'deref', 'not']:
+                elif token["token"] in ['ptr', 'return', 'deref', 'not', 'destroy']:
                     append_ast_scope(scope, {
                         'act': 'statement',
                         'name': token["token"],
@@ -240,6 +240,8 @@ def compile_program(program, saveprefix):
                     itt = lex_scope(new_scope, itt, '()', True)
                 elif token["token"] in ["var", "glvar"]:  # variable definition
                     incr_itt()
+                    var_type = tokens[itt]["token"]
+                    incr_itt()
                     incr_itt()
                     # variable declarations and definitions should only contain =
                     if tokens[itt]["token"] in ["="]:
@@ -247,6 +249,7 @@ def compile_program(program, saveprefix):
                             'act': token["token"] + 'def',
                             'name': tokens[itt - 1]["token"],
                             'args': [],
+                            'type': var_type
                         })
                         new_scope = scope + \
                             [len(get_ast_scope(scope)) - 1, 'args']
@@ -300,6 +303,7 @@ def compile_program(program, saveprefix):
 
                     set_ast_scope(scope + [function_name], {
                         'name': function_name,
+                        'act': 'fundef',
                         'args': function_arguments,
                         'return': function_return,
                         'body': []
@@ -310,6 +314,24 @@ def compile_program(program, saveprefix):
 
                     print("FUNCTION => ", function_name,
                           function_arguments, function_return, "itt:", itt)
+                elif token["token"] == "glb":
+                    incr_itt()
+                    v_type = tokens[itt]["token"]
+                    incr_itt()
+                    var_name = tokens[itt]["token"]
+                    incr_itt()
+                    if tokens[itt]["token"] in ["="]:
+                        set_ast_scope(scope + [var_name], {
+                            'name': var_name,
+                            'type': v_type,
+                            'act': 'glbdef',
+                            'body': []
+                        })
+                        new_scope = scope + \
+                            [var_name, 'body']
+                        itt = lex_scope(new_scope, itt, '()', 2)
+                    else:
+                        errors.append("Could not parse global variable declaration")
                 elif tokens[itt + 1]["token"] == "(":  # function call
                     self_function = tokens[itt - 1]["token"] == '.'
                     selfarg = ""
@@ -674,7 +696,10 @@ def run_program(program):
 
         var_arr.pop()
         return return_values if arg_parse else return_value
-        
+    
+    for potential_global in prog_cnt["globals"]:
+        if prog_cnt["globals"][potential_global]["act"] == "glbdef": # defining global variable
+            DEFAULT_CONSTANTS[potential_global] = recursive_run(['globals', potential_global, 'body'])
     recursive_run(['globals', 'main', 'body'], DEFAULT_CONSTANTS)
 
 

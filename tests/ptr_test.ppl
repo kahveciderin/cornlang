@@ -1,13 +1,13 @@
 fun main => none {
 
-    var val_pointer_0 = 0
-    var val_pointer_1 = 0
-    var val_pointer_2 = 0
+    var i5 val_pointer_0 = 0
+    var i5 val_pointer_1 = 0
+    var i5 val_pointer_2 = 0
     if(true){
         if(true){
-            glvar val_inside = "hello world";
-            glvar val_inside_2 = "asdf";
-            glvar val_inside_3 = "val2";
+            glvar str val_inside = "hello world";
+            glvar str val_inside_2 = "asdf";
+            glvar str val_inside_3 = "val2";
             val_pointer_0 = ptr("val_inside")
             val_pointer_1 = ptr("val_inside_2")
             val_pointer_2 = ptr("val_inside_3")
