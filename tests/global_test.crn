@@ -1,4 +1,4 @@
-glb i5 global_variable = "hello world"
+glb str global_variable = "hello world"
 
 fun main => none {
     println(global_variable)

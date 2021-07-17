@@ -2,19 +2,21 @@
 
 # Cornlang (codenamed "Metal") parser, tokenizer and lexer.
 
+import argparse
 import copy
-import traceback
 import json
-import bson
-import pickle
-import sys
 import os
+import pickle
 import shutil
+import sys
+import traceback
 from inspect import getframeinfo, stack
 
+import bson
 
-def debuginfo(message):
-    caller = getframeinfo(stack()[2][0])
+
+def debuginfo(message, depth=2):
+    caller = getframeinfo(stack()[depth][0])
     # python3 syntax print
     print("%s:%d - %s" % (caller.filename, caller.lineno, message))
     # print(getframeinfo(stack()[2][0]))
@@ -45,10 +47,6 @@ if DEVMODE:
         exit(-1)
     open(sys.argv[0].strip('./') + '.old',
          'w').write(''.join(open(sys.argv[0]).readlines()))
-
-if len(sys.argv) < 2:
-    print("Wrong usage")
-    exit(-1)
 
 
 def compile_program(program, saveprefix):
@@ -235,27 +233,50 @@ def compile_program(program, saveprefix):
                         'name': token["token"],
                         'args': []
                     })
-                    
+
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
                     itt = lex_scope(new_scope, itt, '()', True)
                 elif token["token"] in ["var", "glvar"]:  # variable definition
-                    incr_itt()
-                    var_type = tokens[itt]["token"]
-                    incr_itt()
-                    incr_itt()
+                    # incr_itt()
+                    # var_type = tokens[itt]["token"]
+                    # incr_itt()
+                    # incr_itt()
                     # variable declarations and definitions should only contain =
-                    if tokens[itt]["token"] in ["="]:
-                        append_ast_scope(scope, {
-                            'act': token["token"] + 'def',
-                            'name': tokens[itt - 1]["token"],
-                            'args': [],
-                            'type': var_type
+                    # if tokens[itt]["token"] in ["="]:
+                    append_ast_scope(scope, {
+                        'act': token["token"] + 'def',
+                        'name': '',
+                        'args': [],
+                        'type': []
+                    })
+                    new_scope_t = scope + [len(get_ast_scope(scope)) - 1, 'type']
+                    itt = lex_scope(new_scope_t, itt, '()', 3)
+                    # itt -= 2
+                    og_scope = get_ast_scope(scope + [len(get_ast_scope(scope)) - 1])
+                    og_scope["name"] = tokens[itt + 1]["token"]
+
+                    incr_itt()
+                    incr_itt()
+
+                    set_ast_scope(scope + [len(get_ast_scope(scope)) - 1], og_scope)
+                    new_scope = scope + \
+                        [len(get_ast_scope(scope)) - 1, 'args']
+                    itt = lex_scope(new_scope, itt, '()', 2)
+                elif token["token"] == "ptrvar":
+                    append_ast_scope(scope, {
+                        'act': 'statement',
+                        'name': token["token"],
+                        'type': []
+                    })
+                    new_scope = scope + [len(get_ast_scope(scope)) - 1, 'type']
+                    itt = lex_scope(new_scope, itt, '()', 3)
+                    break
+                elif token["token"] in ["str", "i7", "i6", "i5", "i4", "i3", "i2", "i1", "i0"]:
+                    append_ast_scope(scope, {
+                            'act': 'type',
+                            'type': token["token"],
                         })
-                        new_scope = scope + \
-                            [len(get_ast_scope(scope)) - 1, 'args']
-                        itt = lex_scope(new_scope, itt, '()', 2)
-                    else:
-                        errors.append("Could not parse variable declaration")
+                    break
                 elif token["token"] == "lst":
                     incr_itt()
                     arr_type = tokens[itt]["token"]
@@ -274,7 +295,8 @@ def compile_program(program, saveprefix):
                             [len(get_ast_scope(scope)) - 1, 'args']
                         itt = lex_scope(new_scope, itt, '()', 2)
                     else:
-                        errors.append("Could not parse list variable declaration")
+                        errors.append(
+                            "Could not parse list variable declaration")
                 elif token["token"] == "fun":  # function definition
                     incr_itt()
                     function_name = tokens[itt]["token"]
@@ -314,6 +336,22 @@ def compile_program(program, saveprefix):
 
                     print("FUNCTION => ", function_name,
                           function_arguments, function_return, "itt:", itt)
+                elif token["token"] == "ext":
+                    incr_itt()
+                    ext_name = tokens[itt]["token"]
+                    incr_itt()
+                    ext_args = []
+                    while tokens[itt]["token"] != '=>':
+                        ext_args.append(tokens[itt]["token"])
+                        incr_itt()
+                    incr_itt()
+                    return_type = tokens[itt]["token"]
+                    set_ast_scope(scope + [ext_name], {
+                        'name': ext_name,
+                        'act': 'extdef',
+                        'args': ext_args,
+                        'return': return_type
+                    })
                 elif token["token"] == "glb":
                     incr_itt()
                     v_type = tokens[itt]["token"]
@@ -331,7 +369,8 @@ def compile_program(program, saveprefix):
                             [var_name, 'body']
                         itt = lex_scope(new_scope, itt, '()', 2)
                     else:
-                        errors.append("Could not parse global variable declaration")
+                        errors.append(
+                            "Could not parse global variable declaration")
                 elif tokens[itt + 1]["token"] == "(":  # function call
                     self_function = tokens[itt - 1]["token"] == '.'
                     selfarg = ""
@@ -401,24 +440,27 @@ def compile_program(program, saveprefix):
                         print(
                             "not going in, this is the reason we came here in the first place")
                 elif token["token"] == '[':
-                    if tokens[itt - 1]["type"] == 'sym': # we are defining an array
+                    if tokens[itt - 1]["type"] == 'sym':  # we are defining an array
                         append_ast_scope(scope, {
                             'act': 'arrset',
                             'args': []
                         })
-                        new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
+                        new_scope = scope + \
+                            [len(get_ast_scope(scope)) - 1, 'args']
                         while tokens[itt]["token"] != ']':
                             itt = lex_scope(new_scope, itt, '[]', True)
-                    else: # we are indexing an array
-                        old_stat_place = get_ast_scope(scope + [len(get_ast_scope(scope)) - 2])
+                    else:  # we are indexing an array
+                        old_stat_place = get_ast_scope(
+                            scope + [len(get_ast_scope(scope)) - 2])
                         set_ast_scope(scope, get_ast_scope(scope)[:-1])
                         append_ast_scope(scope, {
                             'act': 'arrget',
                             'body': [old_stat_place],
                             'args': []
                         })
-                        
-                        new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
+
+                        new_scope = scope + \
+                            [len(get_ast_scope(scope)) - 1, 'args']
                         itt = lex_scope(new_scope, itt, '[]', True)
                 elif token["token"] == entr[1]:
                     # scope_checker -= 1
@@ -463,6 +505,9 @@ def compile_program(program, saveprefix):
                 if tokens[itt + 1]["token"] not in ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||'] and tokens[itt]["token"] not in ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||']:
                     print("stopping")
                     break
+            if is_argp == 3:
+                if tokens[itt]["token"] in ["="]:
+                    break
         print("END SCOPE =>", scope, "itt", itt,
               "symbol", tokens[itt]["token"])
         return itt
@@ -487,6 +532,7 @@ def compile_program(program, saveprefix):
         pickle.dump(ast, open(save_prefix_comp + "program.pck", "wb"))
     except Exception as e:
         traceback.print_exc()
+        debuginfo("FUCKED UP", 3)
         print("Exception has occured:", e)
         print("Dumping ast to ast_err.json")
         open(save_prefix_comp + "ast_err.json", "w").write(json.dumps(
@@ -512,6 +558,7 @@ def run_program(program):
             return "i0"
         if type(obj) is list:
             return "lst"
+
     def get_ast_scope(scope):
         accumulator = copy.copy(prog_cnt)
         for elem in scope:
@@ -621,7 +668,8 @@ def run_program(program):
                         print("Error: List type not the same as variable type")
                 set_var(instr["name"], s_list)
             elif instr["act"] == "varset":
-                set_var(instr["name"], recursive_run(scope + [i, 'args']), instr["oper"])
+                set_var(instr["name"], recursive_run(
+                    scope + [i, 'args']), instr["oper"])
             elif instr["act"] == "const":
                 manage_return_value(instr["val"])
             elif instr["act"] == "oper":
@@ -642,13 +690,25 @@ def run_program(program):
                             '$' + str(fmt_i - 1), str(function_args[fmt_i]))
                     manage_return_value(accum_str)
                 else:  # call non-builtin function
-                    args_list = [x["name"]
-                                            for x in get_ast_scope(['globals', instr["name"], 'args'])]
-                    vars_pass = {}
-                    for iters, farg in enumerate(args_list):
-                        vars_pass[farg] = function_args[iters]
-                    manage_return_value(recursive_run(
-                        ['globals', instr["name"], 'body'], vars_pass))
+                    try:
+                        if get_ast_scope(['globals', instr["name"], 'act']) == 'fundef':
+                            args_list = [x["name"]
+                                         for x in get_ast_scope(['globals', instr["name"], 'args'])]
+                            vars_pass = {}
+                            for iters, farg in enumerate(args_list):
+                                vars_pass[farg] = function_args[iters]
+                            manage_return_value(recursive_run(
+                                ['globals', instr["name"], 'body'], vars_pass))
+                        elif get_ast_scope(['globals', instr["name"], 'act']) == 'extdef':
+                            manage_return_value(0)
+                        else:
+                            print(
+                                "Error: You are trying to call a variable. Returning it instead.")
+                            manage_return_value(get_var(instr["name"]))
+                    except:
+                        print(
+                            "Error: You are possibly trying to call a variable. Returning it instead.")
+                        manage_return_value(get_var(instr["name"])["value"])
             elif instr["act"] == "getvar":
                 manage_return_value(get_var(instr["name"])["value"])
             elif instr["act"] == "expr":
@@ -660,17 +720,21 @@ def run_program(program):
                     if stat_args[0]:
                         recursive_run(scope + [i, 'body'])
                 elif instr["name"] == "while":
-                    while recursive_run(scope + [i, 'args'], arg_parse=True)[0]: # constantly check this
+                    # constantly check this
+                    while recursive_run(scope + [i, 'args'], arg_parse=True)[0]:
                         recursive_run(scope + [i, 'body'])
                 elif instr["name"] == "foreach":
                     for value in stat_args[0]:
-                        recursive_run(scope + [i, 'body'], {stat_args[1]: value})
+                        recursive_run(scope + [i, 'body'],
+                                      {stat_args[1]: value})
                 elif instr["name"] == "return":
                     stop_function = True
-                    value_function = stat_args[0] if len(stat_args) > 0 else None 
+                    value_function = stat_args[0] if len(
+                        stat_args) > 0 else None
                     break
                 elif instr["name"] == "ptr":
-                    manage_return_value(next((i for i, item in enumerate(glvar_arr) if item["name"] == stat_args[0]), None))
+                    manage_return_value(next((i for i, item in enumerate(
+                        glvar_arr) if item["name"] == stat_args[0]), None))
                 elif instr["name"] == "deref":
                     manage_return_value(glvar_arr[stat_args[0]]["value"])
                 elif instr["name"] == "not":
@@ -689,20 +753,28 @@ def run_program(program):
                             break
                 manage_return_value(arr_val)
             elif instr["act"] == "arrget":
-                manage_return_value(recursive_run(scope + [i, 'body'])[recursive_run(scope + [i, 'args'], arg_parse=True)[0]])
+                manage_return_value(recursive_run(
+                    scope + [i, 'body'])[recursive_run(scope + [i, 'args'], arg_parse=True)[0]])
 
             if arg_parse:
                 return_values.append(return_value)
 
         var_arr.pop()
         return return_values if arg_parse else return_value
-    
+
     for potential_global in prog_cnt["globals"]:
-        if prog_cnt["globals"][potential_global]["act"] == "glbdef": # defining global variable
-            DEFAULT_CONSTANTS[potential_global] = recursive_run(['globals', potential_global, 'body'])
+        if prog_cnt["globals"][potential_global]["act"] == "glbdef":  # defining global variable
+            DEFAULT_CONSTANTS[potential_global] = recursive_run(
+                ['globals', potential_global, 'body'])
     recursive_run(['globals', 'main', 'body'], DEFAULT_CONSTANTS)
 
 
+# cliargsparser = argparse.ArgumentParser(description="Corncomb (cornc for short) is an interpreter, tokenizer, lexical analyser and compiler for the language Cornlang", formatter_class=argparse.RawTextHelpFormatter)
+
+# cliargsparser.add_argument('-a', '--act', help="The action to execute\n\tAvailable actions are:\n\t\ttest\n\t\tinterpret")
+# cliargsparser.add_argument('-f', '--file', help="Input filename")
+# cliargsparser.add_argument('-o', '--output', help="Output folder name")
+# cliargs = cliargsparser.parse_args()
 if sys.argv[1] == 'test':
     if len(sys.argv) < 3:
         print("Wrong usage")

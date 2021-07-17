@@ -1,0 +1,4 @@
+fun main => none {
+    var str a = "Test string"
+    println(a()) # should print an error and print "Test string"
+}
