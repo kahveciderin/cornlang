@@ -252,6 +252,25 @@ def compile_program(program, saveprefix):
                         itt = lex_scope(new_scope, itt, '()', 2)
                     else:
                         errors.append("Could not parse variable declaration")
+                elif token["token"] == "lst":
+                    incr_itt()
+                    arr_type = tokens[itt]["token"]
+                    incr_itt()
+                    arr_name = tokens[itt]["token"]
+                    incr_itt()
+                    # variable declarations and definitions should only contain =
+                    if tokens[itt]["token"] in ["="]:
+                        append_ast_scope(scope, {
+                            'act': 'lstdef',
+                            'type': arr_type,
+                            'name': arr_name,
+                            'args': [],
+                        })
+                        new_scope = scope + \
+                            [len(get_ast_scope(scope)) - 1, 'args']
+                        itt = lex_scope(new_scope, itt, '()', 2)
+                    else:
+                        errors.append("Could not parse list variable declaration")
                 elif token["token"] == "fun":  # function definition
                     incr_itt()
                     function_name = tokens[itt]["token"]
@@ -456,9 +475,20 @@ def run_program(program):
     print("\n\n\nRunning", program)
 
     DEFAULT_CONSTANTS = {
-        'null': None
+        'null': None,
+        'true': True,
+        'false': False,
     }
 
+    def type_conversion(obj):
+        if type(obj) is str:
+            return "str"
+        if type(obj) is int:
+            return "i6"
+        if type(obj) is bool:
+            return "i0"
+        if type(obj) is list:
+            return "lst"
     def get_ast_scope(scope):
         accumulator = copy.copy(prog_cnt)
         for elem in scope:
@@ -555,9 +585,14 @@ def run_program(program):
             if instr["act"] == "vardef":
                 # variable definitions return -1 because it is not allowed to chain variable definitions
                 set_var(instr["name"], recursive_run(scope + [i, 'args']))
+            elif instr["act"] == "lstdef":
+                s_list = recursive_run(scope + [i, 'args'])
+                if len(s_list) != 0:
+                    if type_conversion(s_list[0]) != instr["type"]:
+                        print("Error: List type not the same as variable type")
+                set_var(instr["name"], s_list)
             elif instr["act"] == "varset":
-                set_var(instr["name"], recursive_run(
-                    scope + [i, 'args']), instr["oper"])
+                set_var(instr["name"], recursive_run(scope + [i, 'args']), instr["oper"])
             elif instr["act"] == "const":
                 manage_return_value(instr["val"])
             elif instr["act"] == "oper":
@@ -600,7 +635,18 @@ def run_program(program):
                     value_function = stat_args[0] if len(stat_args) > 0 else None 
                     break
             elif instr["act"] == "arrset":
-                manage_return_value(recursive_run(scope + [i, 'args'], arg_parse=True))
+                arr_val = recursive_run(scope + [i, 'args'], arg_parse=True)
+                type_acc = None
+                for av in arr_val:
+                    if(type_acc == None):
+                        type_acc = type(av)
+                    else:
+                        if(type_acc == type(av)):
+                            continue
+                        else:
+                            print("Error: Lists cannot contain mixed types.")
+                            break
+                manage_return_value(arr_val)
             elif instr["act"] == "arrget":
                 manage_return_value(recursive_run(scope + [i, 'body'])[recursive_run(scope + [i, 'args'], arg_parse=True)[0]])
 

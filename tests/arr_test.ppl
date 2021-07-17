@@ -1,5 +1,5 @@
 fun main => none {
-    var foo = ["foo", "baz", "bar"]
+    lst str foo = ["foo", "baz", "bar"]
 
     println(foo[0][1])
 }
