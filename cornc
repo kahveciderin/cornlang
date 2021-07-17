@@ -393,16 +393,40 @@ def compile_program(program, saveprefix):
                     incr_itt()
                     # TODO: account for & and | and ^ and **
                     if tokens[itt]["token"] in ['=', "+=", "-=", "/=", "*="]:
-                        print("SETVAR")
-                        append_ast_scope(scope, {
-                            'act': 'varset',
-                            'name': tokens[itt - 1]["token"],
-                            'oper': tokens[itt]["token"],
-                            'args': [],
-                        })
-                        new_scope = scope + \
-                            [len(get_ast_scope(scope)) - 1, 'args']
-                        itt = lex_scope(new_scope, itt, '()', 2)
+                        tkn_ss = tokens[itt]["token"]
+                        tkn_nm = tokens[itt - 1]["token"]
+    
+                        if tkn_ss == '=':
+                            append_ast_scope(scope, {
+                                'act': 'varset',
+                                'name': tokens[itt - 1]["token"],
+                                'oper': '=',
+                                'args': [],
+                            })
+                            new_scope = scope + \
+                                [len(get_ast_scope(scope)) - 1, 'args']
+                            itt = lex_scope(new_scope, itt, '()', 2)
+                        else:
+                            append_ast_scope(scope, {
+                                'act': 'varset',
+                                'name': tokens[itt - 1]["token"],
+                                'oper': '=',
+                                'args': [
+                                    {
+                                        'act': 'oper',
+                                        'val': tkn_ss[0],
+                                        'args': [
+                                            {
+                                                "act": "getvar",
+                                                "name": tkn_nm
+                                            }
+                                        ]
+                                    }
+                                ],
+                            })
+                            new_scope = scope + \
+                                [len(get_ast_scope(scope)) - 1, 'args', 0, 'args']
+                            itt = lex_scope(new_scope, itt, '()', 2)
                     else:  # getting
                         print("GETVAR", itt)
                         itt -= 1

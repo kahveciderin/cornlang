@@ -1,0 +1,210 @@
+{
+  "globals": {
+    "main": {
+      "name": "main",
+      "act": "fundef",
+      "args": [],
+      "return": "none",
+      "body": [
+        {
+          "act": "vardef",
+          "name": "foo",
+          "args": [],
+          "type": [
+            {
+              "act": "type",
+              "type": "str"
+            }
+          ]
+        },
+        {
+          "act": "oper",
+          "args": [
+            {
+              "act": "oper",
+              "args": [
+                {
+                  "act": "const",
+                  "type": "str",
+                  "val": "foo"
+                },
+                {
+                  "act": "const",
+                  "type": "str",
+                  "val": "bar"
+                }
+              ],
+              "val": "+"
+            },
+            {
+              "act": "const",
+              "type": "number",
+              "val": 4
+            },
+            {
+              "act": "call",
+              "name": "println",
+              "args": [
+                {
+                  "act": "getvar",
+                  "name": "foo"
+                }
+              ]
+            }
+          ],
+          "val": "*"
+        },
+        {
+          "act": "vardef",
+          "name": "a",
+          "args": [
+            {
+              "act": "const",
+              "type": "number",
+              "val": 123
+            }
+          ],
+          "type": [
+            {
+              "act": "type",
+              "type": "i5"
+            }
+          ]
+        },
+        {
+          "act": "varset",
+          "name": "a",
+          "oper": "+=",
+          "args": [
+            {
+              "act": "const",
+              "type": "number",
+              "val": 765
+            }
+          ]
+        },
+        {
+          "act": "varset",
+          "name": "a",
+          "oper": "=",
+          "args": [
+            {
+              "act": "oper",
+              "args": [
+                {
+                  "act": "getvar",
+                  "name": "a"
+                },
+                {
+                  "act": "const",
+                  "type": "number",
+                  "val": 112
+                }
+              ],
+              "val": "+"
+            }
+          ]
+        },
+        {
+          "act": "call",
+          "name": "print",
+          "args": [
+            {
+              "act": "const",
+              "type": "str",
+              "val": "print test: "
+            }
+          ]
+        },
+        {
+          "act": "call",
+          "name": "println",
+          "args": [
+            {
+              "act": "call",
+              "name": "fmt",
+              "args": [
+                {
+                  "act": "const",
+                  "type": "str",
+                  "val": "$0"
+                },
+                {
+                  "act": "oper",
+                  "args": [
+                    {
+                      "act": "getvar",
+                      "name": "a"
+                    },
+                    {
+                      "act": "const",
+                      "type": "number",
+                      "val": 9000
+                    }
+                  ],
+                  "val": "+"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "act": "statement",
+          "name": "if",
+          "args": [
+            {
+              "act": "oper",
+              "args": [
+                {
+                  "act": "getvar",
+                  "name": "a"
+                },
+                {
+                  "act": "const",
+                  "type": "number",
+                  "val": 100
+                }
+              ],
+              "val": ">"
+            }
+          ],
+          "body": [
+            {
+              "act": "varset",
+              "name": "a",
+              "oper": "+=",
+              "args": [
+                {
+                  "act": "const",
+                  "type": "number",
+                  "val": 10000000
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "act": "call",
+          "name": "println",
+          "args": [
+            {
+              "act": "call",
+              "name": "fmt",
+              "args": [
+                {
+                  "act": "const",
+                  "type": "str",
+                  "val": "$0"
+                },
+                {
+                  "act": "getvar",
+                  "name": "a"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
