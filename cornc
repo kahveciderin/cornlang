@@ -215,7 +215,7 @@ def compile_program(program, saveprefix):
             # print("scope", scope, "itt", itt, "char", tokens[itt]["token"])
             token = tokens[itt]
             if token["type"] == 'identifier':
-                if token["token"] == "if":  # if statement
+                if token["token"] in ["if", "while", "foreach"]:
                     append_ast_scope(scope, {
                         'act': 'statement',
                         'name': token["token"],
@@ -224,11 +224,12 @@ def compile_program(program, saveprefix):
                     })
 
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
-                    itt = lex_scope(new_scope, itt, '()', True)
+                    while tokens[itt]["token"] != ')':
+                        itt = lex_scope(new_scope, itt, '()', True)
 
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'body']
                     itt = lex_scope(copy.copy(new_scope), itt)
-                elif token["token"] == "return":
+                elif token["token"] in ['ptr', 'return', 'deref', 'not']:
                     append_ast_scope(scope, {
                         'act': 'statement',
                         'name': token["token"],
@@ -237,13 +238,13 @@ def compile_program(program, saveprefix):
                     
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
                     itt = lex_scope(new_scope, itt, '()', True)
-                elif token["token"] == "var":  # variable definition
+                elif token["token"] in ["var", "glvar"]:  # variable definition
                     incr_itt()
                     incr_itt()
                     # variable declarations and definitions should only contain =
                     if tokens[itt]["token"] in ["="]:
                         append_ast_scope(scope, {
-                            'act': 'vardef',
+                            'act': token["token"] + 'def',
                             'name': tokens[itt - 1]["token"],
                             'args': [],
                         })
@@ -499,6 +500,7 @@ def run_program(program):
     value_function = None
 
     var_arr = []
+    glvar_arr = []
 
     def recursive_run(scope, vars_s={}, multiple_do="=", arg_parse=False):
         nonlocal stop_function
@@ -585,6 +587,11 @@ def run_program(program):
             if instr["act"] == "vardef":
                 # variable definitions return -1 because it is not allowed to chain variable definitions
                 set_var(instr["name"], recursive_run(scope + [i, 'args']))
+            elif instr["act"] == "glvardef":
+                glvar_arr.append({
+                    'name': instr["name"],
+                    'value': recursive_run(scope + [i, 'args'])
+                })
             elif instr["act"] == "lstdef":
                 s_list = recursive_run(scope + [i, 'args'])
                 if len(s_list) != 0:
@@ -630,10 +637,22 @@ def run_program(program):
                 if instr["name"] == "if":
                     if stat_args[0]:
                         recursive_run(scope + [i, 'body'])
+                elif instr["name"] == "while":
+                    while recursive_run(scope + [i, 'args'], arg_parse=True)[0]: # constantly check this
+                        recursive_run(scope + [i, 'body'])
+                elif instr["name"] == "foreach":
+                    for value in stat_args[0]:
+                        recursive_run(scope + [i, 'body'], {stat_args[1]: value})
                 elif instr["name"] == "return":
                     stop_function = True
                     value_function = stat_args[0] if len(stat_args) > 0 else None 
                     break
+                elif instr["name"] == "ptr":
+                    manage_return_value(next((i for i, item in enumerate(glvar_arr) if item["name"] == stat_args[0]), None))
+                elif instr["name"] == "deref":
+                    manage_return_value(glvar_arr[stat_args[0]]["value"])
+                elif instr["name"] == "not":
+                    manage_return_value(not stat_args[0])
             elif instr["act"] == "arrset":
                 arr_val = recursive_run(scope + [i, 'args'], arg_parse=True)
                 type_acc = None
