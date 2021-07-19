@@ -269,10 +269,15 @@ def compile_program(program, saveprefix):
                     new_scope = scope + \
                         [len(get_ast_scope(scope)) - 1, 'args']
                     itt = lex_scope(new_scope, itt, '()', 2)
-                elif token["token"] == "ptrvar":
+                elif token["token"] in ["ptrvar", "lstvar"]:
+                    lst_len = -1
+                    if token["token"] == "lstvar":
+                        incr_itt()
+                        lst_len = tokens[itt]["token"]
                     append_ast_scope(scope, {
                         'act': 'statement',
                         'name': token["token"],
+                        'len': lst_len,
                         'type': []
                     })
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'type']

@@ -1,5 +1,4 @@
 fun main => none {
-    lst str foo = ["foo", "baz", "bar"]
-
+    var lstvar 100 str foo = ["foo", "baz", "bar"]
     println(foo[0][1])
 }
