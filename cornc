@@ -148,7 +148,7 @@ def compile_program(program, saveprefix):
 
     errors = []
 
-    OPERATIONS = ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||', '&', '|', '^']
+    OPERATIONS = ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||', '&', '|', '^', '!=']
 
     def error_out():
         if(len(errors) > 0):
