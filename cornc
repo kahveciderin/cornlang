@@ -210,8 +210,8 @@ def compile_program(program, saveprefix):
         debuginfo("Scope call location")
         while True:
             incr_itt()  # get next token
-            print("CURRENT TOKEN =>", tokens[itt], "ITT", itt, "ENTR", entr)
-            debuginfo("Scope call location")
+            # print("CURRENT TOKEN =>", tokens[itt], "ITT", itt, "ENTR", entr)
+            # debuginfo("Scope call location")
             # print("scope", scope, "itt", itt, "char", tokens[itt]["token"])
             token = tokens[itt]
             if token["type"] == 'identifier':
@@ -348,8 +348,8 @@ def compile_program(program, saveprefix):
                     new_scope = scope + [function_name, 'body']
                     itt = lex_scope(copy.copy(new_scope), itt)
 
-                    print("FUNCTION => ", function_name,
-                          function_arguments, function_return, "itt:", itt)
+                    # print("FUNCTION => ", function_name,
+                    #       function_arguments, function_return, "itt:", itt)
                 elif token["token"] == "ext":
                     incr_itt()
                     ext_name = tokens[itt]["token"]
@@ -392,8 +392,8 @@ def compile_program(program, saveprefix):
                         selfarg = get_ast_scope(
                             scope)[len(get_ast_scope(scope)) - 1]
                         set_ast_scope(scope, get_ast_scope(scope)[:-1])
-                    print("{}FUNCTION CALL".format(
-                        "SELF " if self_function else ""), token["token"])
+                    # print("{}FUNCTION CALL".format(
+                    #     "SELF " if self_function else ""), token["token"])
                     append_ast_scope(scope, {
                         'act': 'call',
                         'name': token["token"],
@@ -442,7 +442,7 @@ def compile_program(program, saveprefix):
                                 [len(get_ast_scope(scope)) - 1, 'args', 0, 'args']
                             itt = lex_scope(new_scope, itt, '()', 2)
                     else:  # getting
-                        print("GETVAR", itt)
+                        # print("GETVAR", itt)
                         itt -= 1
                         append_ast_scope(scope, {
                             'act': 'getvar',
@@ -475,8 +475,9 @@ def compile_program(program, saveprefix):
                             [len(get_ast_scope(scope)) - 1, 'val']
                         itt = lex_scope(new_scope, itt - 1, '()')
                     else:
-                        print(
-                            "not going in, this is the reason we came here in the first place")
+                        # print(
+                        #     "not going in, this is the reason we came here in the first place")
+                        pass
                 elif token["token"] == '[':
                     if tokens[itt - 1]["type"] == 'sym':  # we are defining an array
                         append_ast_scope(scope, {
@@ -504,6 +505,13 @@ def compile_program(program, saveprefix):
                     # scope_checker -= 1
                     # if scope_chnew_scope_setecker == 0:
                     #     break  # break out of the loop, scope end reached
+                    print("END REACHED OF SCOPE", scope)
+                    if(len(scope) == 3):
+                        append_ast_scope(scope, {
+                                'act': 'statement',
+                                'name': 'return',
+                                'args': []
+                            })
                     break
                 elif token["token"] == entr[0]:
                     scope_checker += 1
@@ -530,24 +538,24 @@ def compile_program(program, saveprefix):
                     # itt -= 1
                     # print("Ended operation itt", itt, "char", tokens[itt]["token"])
             if is_argp != 0:
-                print("CHECK TOKEN IS", tokens[itt]["token"], token["token"],
-                      "ITT", itt, "is_argp", is_argp, "entr", entr)
+                # print("CHECK TOKEN IS", tokens[itt]["token"], token["token"],
+                #       "ITT", itt, "is_argp", is_argp, "entr", entr)
                 if tokens[itt]["token"] in [",", ".", ")"]:
                     break  # argument parsing done
             last_seen_op += 1
             if is_argp == 2:
                 incr_itt()
                 itt -= 1
-                print("Should I stop varset? itt", itt, "lastseen",
-                      last_seen_op, "nexttok", tokens[itt + 1]["token"])
+                # print("Should I stop varset? itt", itt, "lastseen",
+                #       last_seen_op, "nexttok", tokens[itt + 1]["token"])
                 if tokens[itt + 1]["token"] not in OPERATIONS and tokens[itt]["token"] not in OPERATIONS:
-                    print("stopping")
+                    # print("stopping")
                     break
             if is_argp == 3:
                 if tokens[itt]["token"] in ["="]:
                     break
-        print("END SCOPE =>", scope, "itt", itt,
-              "symbol", tokens[itt]["token"])
+        # print("END SCOPE =>", scope, "itt", itt,
+        #       "symbol", tokens[itt]["token"])
         return itt
 
     ti = -1
