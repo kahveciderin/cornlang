@@ -227,7 +227,14 @@ def compile_program(program, saveprefix):
 
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'body']
                     itt = lex_scope(copy.copy(new_scope), itt)
-                elif token["token"] in ['ptr', 'return', 'deref', 'not', 'destroy']:
+                elif token["token"] == 'ptr':
+                    incr_itt()
+                    append_ast_scope(scope, {
+                        'act': 'varop',
+                        'name': token["token"],
+                        'var': tokens[itt]["token"]
+                    })
+                elif token["token"] in ['return', 'deref', 'not', 'destroy']:
                     append_ast_scope(scope, {
                         'act': 'statement',
                         'name': token["token"],

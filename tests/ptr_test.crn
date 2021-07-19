@@ -1,2 +1,4 @@
 fun main => none {
+    var i5 a = 0
+    println(ptr a)
 }
