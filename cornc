@@ -148,6 +148,8 @@ def compile_program(program, saveprefix):
 
     errors = []
 
+    OPERATIONS = ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||', '&', '|', '^']
+
     def error_out():
         if(len(errors) > 0):
             print("\n".join(errors))
@@ -507,7 +509,7 @@ def compile_program(program, saveprefix):
                     scope_checker += 1
             elif token["type"] == 'sym':
                 # TODO: add support for negative values
-                if token["token"] in ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||']:  # operation
+                if token["token"] in OPERATIONS:  # operation
                     if is_argp == 2:
                         last_seen_op = -1
 
@@ -538,7 +540,7 @@ def compile_program(program, saveprefix):
                 itt -= 1
                 print("Should I stop varset? itt", itt, "lastseen",
                       last_seen_op, "nexttok", tokens[itt + 1]["token"])
-                if tokens[itt + 1]["token"] not in ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||'] and tokens[itt]["token"] not in ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||']:
+                if tokens[itt + 1]["token"] not in OPERATIONS and tokens[itt]["token"] not in OPERATIONS:
                     print("stopping")
                     break
             if is_argp == 3:
