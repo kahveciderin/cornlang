@@ -1,0 +1,18 @@
+fun get_prime_after after:i5 => i5 {
+    
+}
+
+fun is_prime number:i5 => i0 {
+    var i5 counter = number / 2
+    while(counter > 0){
+        if(number){
+            return(false)
+        }
+        counter -= 1 
+    }
+    return(true)
+}
+
+fun main => none{
+    println(is_prime(5))
+}

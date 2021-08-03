@@ -11,4 +11,7 @@ fun main => none {
         a += 10000000
     }
     println("$0".fmt(a))
+
+    var f c = 1.234
+    println(c)
 }

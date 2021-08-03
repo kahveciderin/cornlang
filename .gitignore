@@ -36,6 +36,7 @@
 
 # test output
 testout/
+testc/
 
 .coverage
 

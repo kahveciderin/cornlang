@@ -1,0 +1,93 @@
+#!/usr/bin/python3
+
+import shutil
+import os
+import json
+import copy
+
+def compile_program(prog_name, saveprefix):
+    ast = -1
+    with open(prog_name, 'r') as f:
+        ast = json.loads(f.read())
+    save_prefix_comp = saveprefix + '/' + prog_name.split('/')[2]
+    os.makedirs(save_prefix_comp)
+    print(prog_name)
+
+    TYPE_CONVERSIONS = {
+        'i0': "bool",
+        'i1': "",
+        'i2': "",
+        'i3': "byte",
+        'i4': "word",
+        'i5': "int",
+        'i6': "long",
+        'i7': "long long",
+        'f': "float",
+        'none': "void",
+        'str': "char"
+    }
+    program = ""
+
+    def add_to_program(line, recursion=0, mode = 0):
+        nonlocal program
+        program += ["\n  " + ("  " * recursion), " ", ""][mode] + line
+
+    def end_program_line():
+        nonlocal program
+        program += ";"
+
+    def get_ast_scope(scope):
+        accumulator = copy.copy(ast)
+        for elem in scope:
+            accumulator = accumulator[elem]
+        return accumulator
+
+    def recursive_convert(scope, recursion = 0, parse_mode = 0):
+        nonlocal program
+        local_ast = get_ast_scope(scope)
+        inner_type = -1
+        if parse_mode == 2: # parse types
+            for index, elem in enumerate(local_ast):
+                if elem["act"] == "statement": # parse recursively
+                    a = recursive_convert(scope + [index, "type"], recursion + 1, 2)
+                    if elem["name"] == "ptrvar":
+                        add_to_program("*", recursion=recursion, mode=2)
+                        return a
+                    if elem["name"] == "lstvar":
+                        return a +  "[" + str(elem["len"]) + "]"
+                else:
+                    add_to_program(TYPE_CONVERSIONS[elem["type"]], recursion=recursion, mode=2)
+                    inner_type = elem["type"]
+            return "[]" if inner_type == 'str' else ""
+
+        for index, elem in enumerate(local_ast):
+            if elem["act"] == "vardef":
+                
+                add_to_program(" " + elem["name"] + recursive_convert(scope + [index, "type"], recursion=recursion + 1, parse_mode=2) +  " = ", mode = 2, recursion = recursion + 1)
+                recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
+                end_program_line()
+            elif elem["act"] == "const":
+                if elem["type"] == "number":
+                    add_to_program(str(elem["val"]) + (";" if parse_mode == 0 else ","), mode = 2)
+        
+        if parse_mode == 1:
+            program = program[:-1]
+
+    for key in ast["globals"]:
+        if ast["globals"][key]["act"] == "fundef":
+            program += TYPE_CONVERSIONS[ast["globals"][key]["return"]] + " " + ast["globals"][key]["name"] + "(){"
+            # try:
+            recursive_convert(["globals", key, "body"])
+            # except Exception as e:
+            #     print(e)
+            program += "\n}\n"
+
+    with open(save_prefix_comp + "/program.c", "w") as f:
+        f.write(program)
+
+saveprefix = "testc/"
+programs = os.listdir('testout/tests/')
+if os.path.isdir(saveprefix):
+    shutil.rmtree(saveprefix)
+for program in programs:
+    compile_program('testout/tests/' + program + '/ast.json', saveprefix)

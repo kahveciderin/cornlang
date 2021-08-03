@@ -1,0 +1,14 @@
+fun factorial a:i5 => i5 {
+    var i5 counter = 1
+    var i5 accum = 1
+    while (counter <= a){
+        accum *= counter
+        counter+=1
+    }
+    return(accum)
+}
+
+fun main => none {
+    var i5 fact = factorial(10)
+    println(fact)
+}

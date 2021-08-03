@@ -14,15 +14,16 @@ from inspect import getframeinfo, stack
 
 import bson
 
+DEVMODE = True
 
 def debuginfo(message, depth=2):
     caller = getframeinfo(stack()[depth][0])
     # python3 syntax print
-    print("%s:%d - %s" % (caller.filename, caller.lineno, message))
+    if DEVMODE:
+        print("%s:%d - %s" % (caller.filename, caller.lineno, message))
     # print(getframeinfo(stack()[2][0]))
 
 
-DEVMODE = True
 
 # SEMVER UPDATE
 # ONLY ON DEV MODE
@@ -73,9 +74,10 @@ def compile_program(program, saveprefix):
         fullid = ""
 
         # number
-        fullnum = 0
+        fullnum = "0"
         number_base = -1  # not used
-        number_char = -1  # not used
+        number_char = -1
+        number_going = False
 
         # string
         in_string = False
@@ -99,7 +101,17 @@ def compile_program(program, saveprefix):
                 elif c == '\\' and not is_escaping:
                     is_escaping = True
                 else:
-                    fullstr += c
+                    if is_escaping:
+                        if c == 'n':
+                            fullstr += '\n'
+                        elif c == 'r':
+                            fullstr += '\r'
+                        if c == 't':
+                            fullstr += '\t'
+                        if c == 'a':
+                            fullstr += '\a'
+                    else:
+                        fullstr += c
                     is_escaping = False
             else:
                 if check_id_constraints(fullid, c):
@@ -110,35 +122,43 @@ def compile_program(program, saveprefix):
                     fullid = ""
 
                     if c.isnumeric():
-                        fullnum = fullnum * 10 + int(c)
+                        number_going = True
+                        fullnum += str(c)
                         number_char += 1
                         if number_char == 0:
                             number_base = 10
                     else:
-                        if number_char > -1:
-                            tokens.append({'token': fullnum, 'type': 'number'})
-                        number_char = -1
-                        fullnum = 0
-
-                        if c == '"':
-                            in_string = True
-                            fullstr = ""
-                        elif c in ['(', ')', '[', ']', '{', '}']:
-                            tokens.append({'token': c, 'type': 'bracket'})
-                        # elif c == '$':
-                        #     tokens.append({'token': c, 'type': 'formatter'})
-                        # elif c in ['+', '-', '*', '/', '^', '~', '%', '!']:
-                        #     tokens.append({'token': c, 'type': 'math'})
-                        elif c == ';':
-                            tokens.append({'token': c, 'type': 'semi'})
-                        elif c == ',':
-                            tokens.append({'token': c, 'type': 'sep'})
-                        elif c == '#':
-                            is_comment = True
+                        if c == '.' and number_going:
+                            fullnum += '.'
                         else:
-                            if not c.isspace():
-                                # is symbol
-                                fullsym += c
+                            if number_char > -1:
+                                try:
+                                    tokens.append({'token': int(fullnum), 'type': 'number'})
+                                except:
+                                    tokens.append({'token': float(fullnum), 'type': 'number'})
+                                number_going = False
+                            number_char = -1
+                            fullnum = "0"
+
+                            if c == '"':
+                                in_string = True
+                                fullstr = ""
+                            elif c in ['(', ')', '[', ']', '{', '}']:
+                                tokens.append({'token': c, 'type': 'bracket'})
+                            # elif c == '$':
+                            #     tokens.append({'token': c, 'type': 'formatter'})
+                            # elif c in ['+', '-', '*', '/', '^', '~', '%', '!']:
+                            #     tokens.append({'token': c, 'type': 'math'})
+                            elif c == ';':
+                                tokens.append({'token': c, 'type': 'semi'})
+                            elif c == ',':
+                                tokens.append({'token': c, 'type': 'sep'})
+                            elif c == '#':
+                                is_comment = True
+                            else:
+                                if not c.isspace():
+                                    # is symbol
+                                    fullsym += c
             if oldfullsym == fullsym:  # we haven't added a token somewhere
                 if not fullsym.isspace() and fullsym != '':
                     tokens.append({'token': fullsym, 'type': 'sym'})
@@ -148,7 +168,7 @@ def compile_program(program, saveprefix):
 
     errors = []
 
-    OPERATIONS = ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||', '&', '|', '^', '!=']
+    OPERATIONS = ['+', '-', '*', '/', '>', '<', '==', '<=', '>=', '&&', '||', '&', '|', '^', '!=', '!', '%']
 
     def error_out():
         if(len(errors) > 0):
@@ -205,8 +225,9 @@ def compile_program(program, saveprefix):
 
         itt_entr = copy.copy(itt)
 
-        print("CHECK SCOPE =>", scope, "itt", itt +
-              1, "symbol", tokens[itt + 1]["token"], "parsemode", is_argp)
+        if DEVMODE:
+            print("CHECK SCOPE =>", scope, "itt", itt +
+                1, "symbol", tokens[itt + 1]["token"], "parsemode", is_argp)
         debuginfo("Scope call location")
         while True:
             incr_itt()  # get next token
@@ -285,7 +306,7 @@ def compile_program(program, saveprefix):
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'type']
                     itt = lex_scope(new_scope, itt, '()', 3)
                     break
-                elif token["token"] in ["str", "i7", "i6", "i5", "i4", "i3", "i2", "i1", "i0"]:
+                elif token["token"] in ["str", "i7", "i6", "i5", "i4", "i3", "i2", "i1", "i0", "f"]:
                     append_ast_scope(scope, {
                             'act': 'type',
                             'type': token["token"],
@@ -505,7 +526,8 @@ def compile_program(program, saveprefix):
                     # scope_checker -= 1
                     # if scope_chnew_scope_setecker == 0:
                     #     break  # break out of the loop, scope end reached
-                    print("END REACHED OF SCOPE", scope)
+                    if DEVMODE:
+                        print("END REACHED OF SCOPE", scope)
                     if(len(scope) == 3):
                         append_ast_scope(scope, {
                                 'act': 'statement',
@@ -521,22 +543,53 @@ def compile_program(program, saveprefix):
                     if is_argp == 2:
                         last_seen_op = -1
 
-                    currarg = get_ast_scope(
-                        scope)[len(get_ast_scope(scope)) - 1]
-                    set_ast_scope(scope, get_ast_scope(scope)[:-1])
-                    append_ast_scope(scope, {
-                        'act': 'oper',
-                        'args': [
-                            currarg
-                        ],
-                        'val': token["token"]
-                    })
-                    # print("check next argument itt", itt)
-                    new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
-                    itt = lex_scope(new_scope, itt, '()',
-                                    True if is_argp == 0 else is_argp)
-                    # itt -= 1
-                    # print("Ended operation itt", itt, "char", tokens[itt]["token"])
+                    if token["token"] == '-':
+                        try:
+                            currarg = get_ast_scope(
+                            scope)[len(get_ast_scope(scope)) - 1]
+                            set_ast_scope(scope, get_ast_scope(scope)[:-1])
+                            append_ast_scope(scope, {
+                                'act': 'oper',
+                                'args': [
+                                    currarg
+                                ],
+                                'val': token["token"]
+                            })
+                            new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
+                            itt = lex_scope(new_scope, itt, '()',
+                                            True if is_argp == 0 else is_argp)
+                        except:
+                            append_ast_scope(scope, {
+                                        "act": "statement",
+                                        "name": "neg",
+                                        "args": []
+                                    })
+                            new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
+                            itt = lex_scope(new_scope, itt, '()',
+                                            True if is_argp == 0 else is_argp)
+                    elif token["token"] == '!':
+                        append_ast_scope(scope, {
+                                    "act": "statement",
+                                    "name": "not",
+                                    "args": []
+                                })
+                        new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
+                        itt = lex_scope(new_scope, itt, '()',
+                                        True if is_argp == 0 else is_argp)
+                    else:
+                        currarg = get_ast_scope(
+                            scope)[len(get_ast_scope(scope)) - 1]
+                        set_ast_scope(scope, get_ast_scope(scope)[:-1])
+                        append_ast_scope(scope, {
+                            'act': 'oper',
+                            'args': [
+                                currarg
+                            ],
+                            'val': token["token"]
+                        })
+                        new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
+                        itt = lex_scope(new_scope, itt, '()',
+                                        True if is_argp == 0 else is_argp)
             if is_argp != 0:
                 # print("CHECK TOKEN IS", tokens[itt]["token"], token["token"],
                 #       "ITT", itt, "is_argp", is_argp, "entr", entr)
@@ -554,6 +607,8 @@ def compile_program(program, saveprefix):
             if is_argp == 3:
                 if tokens[itt]["token"] in ["="]:
                     break
+            if is_argp == 4:
+                break
         # print("END SCOPE =>", scope, "itt", itt,
         #       "symbol", tokens[itt]["token"])
         return itt
@@ -578,7 +633,7 @@ def compile_program(program, saveprefix):
         pickle.dump(ast, open(save_prefix_comp + "program.pck", "wb"))
     except Exception as e:
         traceback.print_exc()
-        debuginfo("FUCKED UP", 3)
+        # debuginfo("FUCKED UP", 3)
         print("Exception has occured:", e)
         print("Dumping ast to ast_err.json")
         open(save_prefix_comp + "ast_err.json", "w").write(json.dumps(
@@ -613,6 +668,7 @@ def run_program(program):
 
     stop_function = False
     value_function = None
+    function_call_locations = []
 
     var_arr = []
     glvar_arr = []
@@ -620,6 +676,7 @@ def run_program(program):
     def recursive_run(scope, vars_s={}, multiple_do="=", arg_parse=False):
         nonlocal stop_function
         nonlocal value_function
+        nonlocal function_call_locations
         instrs = get_ast_scope(scope)
         # print("APPENDING", vars_s, "TO VAR_ARR")
         # debuginfo("from")
@@ -674,6 +731,8 @@ def run_program(program):
                     return_value *= value
                 elif multiple_do == '/':
                     return_value /= value
+                elif multiple_do == '%':
+                    return_value = return_value % value
                 elif multiple_do == '<':
                     return_value = value > return_value
                 elif multiple_do == '>':
@@ -694,8 +753,9 @@ def run_program(program):
         for i, instr in enumerate(instrs):
             # print("RUN INSTR", instr, "SCOPE", scope, "I", i, "vars", var_arr)
             if stop_function:
-                if len(scope) == 3:
+                if scope == function_call_locations[len(function_call_locations) - 1]:
                     stop_function = False
+                    function_call_locations.pop()
                 # explicity set this because we are returning from the function
                 return_value = value_function
                 break
@@ -736,7 +796,8 @@ def run_program(program):
                             '$' + str(fmt_i - 1), str(function_args[fmt_i]))
                     manage_return_value(accum_str)
                 else:  # call non-builtin function
-                    try:
+                    # try:
+                        function_call_locations.append(['globals', instr["name"], 'body'])
                         if get_ast_scope(['globals', instr["name"], 'act']) == 'fundef':
                             args_list = [x["name"]
                                          for x in get_ast_scope(['globals', instr["name"], 'args'])]
@@ -751,9 +812,9 @@ def run_program(program):
                             print(
                                 "Error: You are trying to call a variable. Returning it instead.")
                             manage_return_value(get_var(instr["name"]))
-                    except:
-                        print(
-                            "Error: You are possibly trying to call a variable. Returning it instead.")
+                    # except Exception as e:
+                        # print(
+                        #     "Error: You are possibly trying to call a variable. Returning it instead.")
                         manage_return_value(get_var(instr["name"])["value"])
             elif instr["act"] == "getvar":
                 manage_return_value(get_var(instr["name"])["value"])
@@ -765,10 +826,17 @@ def run_program(program):
                 if instr["name"] == "if":
                     if stat_args[0]:
                         recursive_run(scope + [i, 'body'])
+                elif instr["name"] == "neg":
+                    manage_return_value(-stat_args[0])
                 elif instr["name"] == "while":
                     # constantly check this
-                    while recursive_run(scope + [i, 'args'], arg_parse=True)[0]:
-                        recursive_run(scope + [i, 'body'])
+                    while_continue = recursive_run(scope + [i, 'args'], arg_parse=True)
+                    try:
+                        while while_continue[0]:
+                            while_continue = recursive_run(scope + [i, 'args'], arg_parse=True)
+                            recursive_run(scope + [i, 'body'])
+                    except:
+                        print(while_continue)
                 elif instr["name"] == "foreach":
                     for value in stat_args[0]:
                         recursive_run(scope + [i, 'body'],
@@ -777,7 +845,7 @@ def run_program(program):
                     stop_function = True
                     value_function = stat_args[0] if len(
                         stat_args) > 0 else None
-                    break
+                    # break
                 elif instr["name"] == "ptr":
                     manage_return_value(next((i for i, item in enumerate(
                         glvar_arr) if item["name"] == stat_args[0]), None))

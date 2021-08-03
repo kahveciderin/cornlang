@@ -1,0 +1,10 @@
+fun main => none {
+    var i5 a = -123
+    a = a - 1
+    var i0 b = true
+    b = !b
+    var i5 c = 12345
+    println(a)
+    println(b)
+    println(c % 10)
+}
