@@ -256,6 +256,21 @@ def compile_program(program, saveprefix):
                         incr_itt()
                         set_ast_scope(scope + [len(get_ast_scope(scope)) - 1, 'else_body'], [])
                         if tokens[itt]["token"] == 'else':
+                            incr_itt()
+                            if tokens[itt]["token"] == 'if':
+                                set_ast_scope(scope + [len(get_ast_scope(scope)) - 1, 'else_body'], [{
+                                    'act': 'statement',
+                                    'name': 'if',
+                                    'args': [],
+                                    'body': [],
+                                    'else_body': []
+                                }])
+                                while tokens[itt]["token"] != ')':
+                                    itt = lex_scope(scope + [len(get_ast_scope(scope)) - 1, 'else_body', 0, 'args'], itt, '()', True)
+                                itt = lex_scope(scope + [len(get_ast_scope(scope)) - 1, 'else_body', 0, 'body'], itt)
+                                itt-=1
+                            else:
+                                itt -= 1
                             itt = lex_scope(scope + [len(get_ast_scope(scope)) - 1, 'else_body'], itt)
                         else:
                             itt-=1

@@ -1,0 +1,7 @@
+fun main => none {
+    if(true){
+        print("hello");
+    }else if(true){
+        print("world");
+    }
+}
