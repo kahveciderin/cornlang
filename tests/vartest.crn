@@ -5,12 +5,12 @@ fun main => none {
     a += 765
     a = a + 112
     print("print test: ")
-    println("$0".fmt(a + 9000))
+    println("$n".fmt(a + 9000))
 
     if(a > 100){
         a += 10000000
     }
-    println("$0".fmt(a))
+    println("$n".fmt(a))
 
     var f c = 1.234
     println(c)

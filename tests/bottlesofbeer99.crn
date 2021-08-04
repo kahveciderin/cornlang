@@ -2,10 +2,10 @@ fun main => none {
     var i5 counter = 99
     while(counter > 0){
         if(counter > 2){
-            println("$0 bottles of beer on the wall,\n$0 bottles of beer.\nTake one down, pass it around,\n$1 bottles of beer on the wall.\n\n".fmt(counter, counter - 1))
+            println("$n bottles of beer on the wall,\n$n bottles of beer.\nTake one down, pass it around,\n$n bottles of beer on the wall.\n\n".fmt(counter, counter, counter - 1))
         }
         if(counter == 2){
-            println("$0 bottles of beer on the wall,\n$0 bottles of beer.\nTake one down, pass it around,\n$1 bottle of beer on the wall.\n\n".fmt(counter, counter - 1))
+            println("$n bottles of beer on the wall,\n$n bottles of beer.\nTake one down, pass it around,\n$n bottle of beer on the wall.\n\n".fmt(counter, counter, counter - 1))
         }
         if(counter == 1){
             println("1 bottle of beer on the wall,\n1 bottle of beer.\nTake it down, pass it around,\nNo more bottles of beer on the wall.\n\n")

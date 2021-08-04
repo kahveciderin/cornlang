@@ -28,7 +28,7 @@ def compile_program(prog_name, saveprefix):
     }
     program = ""
 
-    def add_to_program(line, recursion=0, mode = 0):
+    def add_to_program(line, recursion=0, mode = 2):
         nonlocal program
         program += ["\n  " + ("  " * recursion), " ", ""][mode] + line
 
@@ -42,7 +42,8 @@ def compile_program(prog_name, saveprefix):
             accumulator = accumulator[elem]
         return accumulator
 
-    def recursive_convert(scope, recursion = 0, parse_mode = 0):
+    def recursive_convert(scope, recursion = 0, parse_mode = 0, between = ','):
+        between = (";" if parse_mode == 0 else between)
         nonlocal program
         local_ast = get_ast_scope(scope)
         inner_type = -1
@@ -62,17 +63,52 @@ def compile_program(prog_name, saveprefix):
 
         for index, elem in enumerate(local_ast):
             if elem["act"] == "vardef":
-                
                 add_to_program(" " + elem["name"] + recursive_convert(scope + [index, "type"], recursion=recursion + 1, parse_mode=2) +  " = ", mode = 2, recursion = recursion + 1)
                 recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
                 end_program_line()
             elif elem["act"] == "const":
                 if elem["type"] == "number":
-                    add_to_program(str(elem["val"]) + (";" if parse_mode == 0 else ","), mode = 2)
-        
+                    add_to_program(str(elem["val"]) + between, mode = 2)
+                elif elem["type"] == "str":
+                    add_to_program('"' + str(elem["val"]).replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('\a', '\\a').replace('\t', '\\t') + '"' + between, mode = 2)
+            elif elem["act"] == "statement":
+                add_to_program(elem["name"])
+                if len(get_ast_scope(scope + [index, "args"])) == 0:
+                    if elem["name"] != "return":
+                        add_to_program("()")
+                    add_to_program(' ;')
+                else:
+                    if elem["name"] != "return":
+                        add_to_program("(")
+                    recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
+                    if elem["name"] != "return":
+                        add_to_program(")")
+                if elem["name"] in ["while", "if"]:
+                    add_to_program("{")
+                    recursive_convert(scope + [index, "body"], parse_mode = 0, recursion = recursion + 1)
+                    add_to_program("}")
+                else:
+                    add_to_program(between)
+            elif elem["act"] == "oper":
+                recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1, between=elem["val"])
+                add_to_program(between)
+            elif elem["act"] == "getvar":
+                add_to_program(elem["name"] + between)
+            elif elem["act"] == "call":
+                add_to_program(elem["name"])
+                add_to_program("(")
+                recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
+                add_to_program(")")
+                add_to_program(between)
+            elif elem["act"] == "varset":
+                add_to_program(elem["name"] + elem["oper"])
+                recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
+                add_to_program(between)
         if parse_mode == 1:
-            program = program[:-1]
-
+            program = program[:-len(between)]
+    with open("corn.h") as hf:
+        program += hf.read()
+        program += "\n\n\n"        
     for key in ast["globals"]:
         if ast["globals"][key]["act"] == "fundef":
             program += TYPE_CONVERSIONS[ast["globals"][key]["return"]] + " " + ast["globals"][key]["name"] + "(){"
@@ -84,6 +120,7 @@ def compile_program(prog_name, saveprefix):
 
     with open(save_prefix_comp + "/program.c", "w") as f:
         f.write(program)
+    os.system("tcc -o " + save_prefix_comp + "/program.o -g " + save_prefix_comp + "/program.c -lm")
 
 saveprefix = "testc/"
 programs = os.listdir('testout/tests/')

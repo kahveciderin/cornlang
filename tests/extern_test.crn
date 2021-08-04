@@ -1,5 +1,5 @@
 ext sin i5 => i5
 
 fun main => none {
-    println("Sine of 12 is $0".fmt(sin(12)))
+    println("Sine of 12 is $f".fmt(sin(12)))
 }
