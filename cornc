@@ -491,10 +491,10 @@ def compile_program(program, saveprefix):
                         # print("well, going in!")
                         append_ast_scope(scope, {
                             'act': 'expr',
-                            'body': []
+                            'args': []
                         })
                         new_scope = scope + \
-                            [len(get_ast_scope(scope)) - 1, 'body']
+                            [len(get_ast_scope(scope)) - 1, 'args']
                         print("MSPT", itt, new_scope)
                         itt = lex_scope(new_scope, itt - 1, '()', is_argp = 1)
                         print("MSEND", itt, tokens[itt])
@@ -829,7 +829,7 @@ def run_program(program):
                 manage_return_value(get_var(instr["name"])["value"])
             elif instr["act"] == "expr":
                 manage_return_value(recursive_run(
-                    scope + [i, 'body'], arg_parse=True)[0])
+                    scope + [i, 'args'], arg_parse=True)[0])
             elif instr["act"] == "statement":
                 stat_args = recursive_run(scope + [i, 'args'], arg_parse=True)
                 if instr["name"] == "if":

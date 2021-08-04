@@ -131,16 +131,20 @@ def compile_program(prog_name, saveprefix):
                 add_to_program(between)
             elif elem["act"] == "expr":
                 add_to_program('(')
-                recursive_convert(scope + [index, "body"], parse_mode = 1, recursion = recursion + 1)
+                recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
                 add_to_program(')')
                 add_to_program(between)
         if parse_mode == 1:
-            program = program[:-len(between)]
-    with open("corn.h") as hf:
-        program += hf.read()
-        program += "\n\n\n"        
+            program = program[:-len(between)]     
     for key in ast["globals"]:
         if ast["globals"][key]["act"] == "fundef":
+            fundec = TYPE_CONVERSIONS[ast["globals"][key]["return"]] + " " + ast["globals"][key]["name"] + "("
+            for ty in ast["globals"][key]["args"]:
+                fundec += TYPE_CONVERSIONS[ty["type"]] + " " + ty["name"] + ","
+            if len(ast["globals"][key]["args"]) > 0:
+                fundec = fundec[:-1]
+            fundec += ");"
+            program = fundec + "\n\n" + program
             program += TYPE_CONVERSIONS[ast["globals"][key]["return"]] + " " + ast["globals"][key]["name"] + "("
             for ty in ast["globals"][key]["args"]:
                 program += TYPE_CONVERSIONS[ty["type"]] + " " + ty["name"] + ","
@@ -155,6 +159,8 @@ def compile_program(prog_name, saveprefix):
         if ast["globals"][key]["act"] == "glbdef":
             program += TYPE_CONVERSIONS[ast["globals"][key]["type"]] + ast["globals"][key]["name"] + "="
             recursive_convert(["globals", key, "body"])
+    with open("corn.h") as hf:
+        program = hf.read() + "\n\n\n" + program
 
 
     with open(save_prefix_comp + "/program.c", "w") as f:
