@@ -171,6 +171,15 @@ def compile_program(prog_name, saveprefix):
         if ast["globals"][key]["act"] == "glbdef":
             program += TYPE_CONVERSIONS[ast["globals"][key]["type"]] + ast["globals"][key]["name"] + "="
             recursive_convert(["globals", key, "body"])
+        if ast["globals"][key]["act"] == "extdef":
+            fundec = TYPE_CONVERSIONS[ast["globals"][key]["return"]] + " " + ast["globals"][key]["name"] + "("
+            for index, ty in enumerate(ast["globals"][key]["args"]):
+                fundec += TYPE_CONVERSIONS[ty] + ","
+            if len(ast["globals"][key]["args"]) > 0:
+                fundec = fundec[:-1]
+            fundec += ");"
+            program = fundec + "\n\n" + program
+
     with open("corn.h") as hf:
         program = hf.read() + "\n\n\n" + program
 
