@@ -3,16 +3,18 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdbool.h>
+
+#define foreach(b,a) for(int a=0;a<(sizeof(b)/sizeof(b[0]));a++)
 
 void println(char *value);
 void print(char *value);
 char *fmt(char *self, ...);
-
 void print(char *value){
     printf("%s", value);
 }
 void println(char *value){
-    print(value);
+    printf("%s\n", value);
 }
 char *fmt(char *self, ...)
 {
@@ -54,6 +56,12 @@ char *fmt(char *self, ...)
                 result = realloc(result, 25 + strlen(result)  * sizeof(char));
                 sprintf(str, "%f", arg);
                 strcat(result, str);
+                break;
+            }
+            case 'c':{
+                char arg = va_arg(args, char);
+                result = realloc(result, (strlen(result) + 2) * sizeof(char));
+                strncat(result, &arg, 1);
                 break;
             }
             }

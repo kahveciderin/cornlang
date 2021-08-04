@@ -97,7 +97,7 @@ def compile_program(program, saveprefix):
             if in_string:
                 if c == '"' and not is_escaping:
                     in_string = False
-                    tokens.append({'token': fullstr, 'type': 'str'})
+                    tokens.append({'token': fullstr + '', 'type': 'str'})
                 elif c == '\\' and not is_escaping:
                     is_escaping = True
                 else:
@@ -247,7 +247,8 @@ def compile_program(program, saveprefix):
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'args']
                     while tokens[itt]["token"] != ')':
                         itt = lex_scope(new_scope, itt, '()', True)
-
+                    
+                    print("STATEMENT WITH BODY", token["token"])
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'body']
                     itt = lex_scope(copy.copy(new_scope), itt)
                 elif token["token"] == 'ptr':
@@ -490,11 +491,15 @@ def compile_program(program, saveprefix):
                         # print("well, going in!")
                         append_ast_scope(scope, {
                             'act': 'expr',
-                            'val': []
+                            'body': []
                         })
                         new_scope = scope + \
-                            [len(get_ast_scope(scope)) - 1, 'val']
-                        itt = lex_scope(new_scope, itt - 1, '()')
+                            [len(get_ast_scope(scope)) - 1, 'body']
+                        print("MSPT", itt, new_scope)
+                        itt = lex_scope(new_scope, itt - 1, '()', is_argp = 1)
+                        print("MSEND", itt, tokens[itt])
+                        continue
+                        # incr_itt()
                     else:
                         # print(
                         #     "not going in, this is the reason we came here in the first place")
@@ -511,7 +516,7 @@ def compile_program(program, saveprefix):
                             itt = lex_scope(new_scope, itt, '[]', True)
                     else:  # we are indexing an array
                         old_stat_place = get_ast_scope(
-                            scope + [len(get_ast_scope(scope)) - 2])
+                            scope + [len(get_ast_scope(scope)) - 1])
                         set_ast_scope(scope, get_ast_scope(scope)[:-1])
                         append_ast_scope(scope, {
                             'act': 'arrget',
@@ -577,6 +582,9 @@ def compile_program(program, saveprefix):
                         itt = lex_scope(new_scope, itt, '()',
                                         True if is_argp == 0 else is_argp)
                     else:
+                        print(get_ast_scope(
+                            scope))
+                        print(scope)
                         currarg = get_ast_scope(
                             scope)[len(get_ast_scope(scope)) - 1]
                         set_ast_scope(scope, get_ast_scope(scope)[:-1])
@@ -638,6 +646,7 @@ def compile_program(program, saveprefix):
         print("Dumping ast to ast_err.json")
         open(save_prefix_comp + "ast_err.json", "w").write(json.dumps(
             ast, indent=2, sort_keys=False))  # debug
+        exit(1)
 
 
 def run_program(program):
@@ -820,7 +829,7 @@ def run_program(program):
                 manage_return_value(get_var(instr["name"])["value"])
             elif instr["act"] == "expr":
                 manage_return_value(recursive_run(
-                    scope + [i, 'val'], arg_parse=True)[0])
+                    scope + [i, 'body'], arg_parse=True)[0])
             elif instr["act"] == "statement":
                 stat_args = recursive_run(scope + [i, 'args'], arg_parse=True)
                 if instr["name"] == "if":
@@ -919,3 +928,13 @@ elif cliargs.act == 'ast':
         print("Wrong usage")
         exit(-1)
     compile_program(cliargs.file, cliargs.output)
+if cliargs.act == 'ta':
+    if not cliargs.output:
+        print("Wrong usage")
+        exit(-1)
+    saveprefix = cliargs.output
+    programs = os.listdir('tests/')
+    if os.path.isdir(saveprefix):
+        shutil.rmtree(saveprefix)
+    for program in programs:
+        compile_program('tests/' + program, saveprefix)

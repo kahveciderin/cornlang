@@ -1,11 +1,7 @@
-fun get_prime_after after:i5 => i5 {
-    
-}
-
-fun is_prime number:i5 => i0 {
+fun is_prime_a number:i5 => i0 {
     var i5 counter = number / 2
-    while(counter > 0){
-        if(number){
+    while(counter > 1){
+        if((number % counter) == 0){
             return(false)
         }
         counter -= 1 
@@ -13,6 +9,18 @@ fun is_prime number:i5 => i0 {
     return(true)
 }
 
+fun get_prime_after after:i5 => i5 {
+    var i5 counter = after
+    while(!is_prime_a(counter)){
+        counter+=1
+    }
+    return(counter)
+}
+
 fun main => none{
-    println(is_prime(5))
+    var i5 prev = 1
+    while(prev < 100){
+        prev = get_prime_after(prev)
+        println("$n".fmt(prev))   
+    }
 }

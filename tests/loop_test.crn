@@ -6,7 +6,7 @@ fun main => none {
     }
     println("End while loop")
     var lstvar 3 str b = ["hello", "world", "asdf"]
-    foreach(b, "element"){
-        println("Loop element: $s".fmt(element))
+    foreach(b, element){
+        println("Loop element: $s".fmt(b[element]))
     }
 }

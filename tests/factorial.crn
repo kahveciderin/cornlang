@@ -10,5 +10,5 @@ fun factorial a:i5 => i5 {
 
 fun main => none {
     var i5 fact = factorial(10)
-    println(fact)
+    println("$n".fmt(fact))
 }

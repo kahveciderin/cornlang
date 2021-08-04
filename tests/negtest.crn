@@ -4,7 +4,7 @@ fun main => none {
     var i0 b = true
     b = !b
     var i5 c = 12345
-    println(a)
-    println(b)
-    println(c % 10)
+    println("$n".fmt(a))
+    println("$n".fmt(b))
+    println("$n".fmt(c % 10))
 }

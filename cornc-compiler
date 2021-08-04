@@ -24,7 +24,7 @@ def compile_program(prog_name, saveprefix):
         'i7': "long long",
         'f': "float",
         'none': "void",
-        'str': "char"
+        'str': "char*"
     }
     program = ""
 
@@ -42,7 +42,7 @@ def compile_program(prog_name, saveprefix):
             accumulator = accumulator[elem]
         return accumulator
 
-    def recursive_convert(scope, recursion = 0, parse_mode = 0, between = ','):
+    def recursive_convert(scope, recursion = 0, parse_mode = 0, between = ',', amount = -1):
         between = (";" if parse_mode == 0 else between)
         nonlocal program
         local_ast = get_ast_scope(scope)
@@ -55,13 +55,17 @@ def compile_program(prog_name, saveprefix):
                         add_to_program("*", recursion=recursion, mode=2)
                         return a
                     if elem["name"] == "lstvar":
-                        return a +  "[" + str(elem["len"]) + "]"
+                        return "[" + str(elem["len"]) + "]"
                 else:
                     add_to_program(TYPE_CONVERSIONS[elem["type"]], recursion=recursion, mode=2)
+                    # if elem["type"] == "str":
+                    #     add_to_program('*')
                     inner_type = elem["type"]
             return "[]" if inner_type == 'str' else ""
 
         for index, elem in enumerate(local_ast):
+            # if amount > 0 and index >= amount:
+            #     break
             if elem["act"] == "vardef":
                 add_to_program(" " + elem["name"] + recursive_convert(scope + [index, "type"], recursion=recursion + 1, parse_mode=2) +  " = ", mode = 2, recursion = recursion + 1)
                 recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
@@ -70,9 +74,16 @@ def compile_program(prog_name, saveprefix):
                 if elem["type"] == "number":
                     add_to_program(str(elem["val"]) + between, mode = 2)
                 elif elem["type"] == "str":
-                    add_to_program('"' + str(elem["val"]).replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('\a', '\\a').replace('\t', '\\t') + '"' + between, mode = 2)
+                    add_to_program('"' + str(elem["val"]).replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('\a', '\\a').replace('\t', '\\t').replace('\0', '\\0') + '"' + between, mode = 2)
             elif elem["act"] == "statement":
-                add_to_program(elem["name"])
+                OP_STATEMENTS = {
+                    'not': '!',
+                    'neg': '-'
+                }
+                if elem["name"] in OP_STATEMENTS:
+                    add_to_program(OP_STATEMENTS[elem["name"]])
+                else:
+                    add_to_program(elem["name"])
                 if len(get_ast_scope(scope + [index, "args"])) == 0:
                     if elem["name"] != "return":
                         add_to_program("()")
@@ -80,12 +91,14 @@ def compile_program(prog_name, saveprefix):
                 else:
                     if elem["name"] != "return":
                         add_to_program("(")
+                    
+                    add_to_program(" ")
                     recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
                     if elem["name"] != "return":
                         add_to_program(")")
-                if elem["name"] in ["while", "if"]:
+                if elem["name"] in ["while", "if", "foreach"]:
                     add_to_program("{")
-                    recursive_convert(scope + [index, "body"], parse_mode = 0, recursion = recursion + 1)
+                    recursive_convert(scope + [index, "body"], parse_mode = 0, recursion = recursion + 1, amount = 1)
                     add_to_program("}")
                 else:
                     add_to_program(between)
@@ -93,7 +106,8 @@ def compile_program(prog_name, saveprefix):
                 recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1, between=elem["val"])
                 add_to_program(between)
             elif elem["act"] == "getvar":
-                add_to_program(elem["name"] + between)
+                if elem["name"] != "null":
+                    add_to_program(elem["name"] + between)
             elif elem["act"] == "call":
                 add_to_program(elem["name"])
                 add_to_program("(")
@@ -104,6 +118,22 @@ def compile_program(prog_name, saveprefix):
                 add_to_program(elem["name"] + elem["oper"])
                 recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
                 add_to_program(between)
+            elif elem["act"] == "arrset":
+                add_to_program("{")
+                recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
+                add_to_program("}")
+                add_to_program(between)
+            elif elem["act"] == "arrget":
+                recursive_convert(scope + [index, "body"], parse_mode = 1, recursion = recursion + 1)
+                add_to_program("[")
+                recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
+                add_to_program("]")
+                add_to_program(between)
+            elif elem["act"] == "expr":
+                add_to_program('(')
+                recursive_convert(scope + [index, "body"], parse_mode = 1, recursion = recursion + 1)
+                add_to_program(')')
+                add_to_program(between)
         if parse_mode == 1:
             program = program[:-len(between)]
     with open("corn.h") as hf:
@@ -111,16 +141,25 @@ def compile_program(prog_name, saveprefix):
         program += "\n\n\n"        
     for key in ast["globals"]:
         if ast["globals"][key]["act"] == "fundef":
-            program += TYPE_CONVERSIONS[ast["globals"][key]["return"]] + " " + ast["globals"][key]["name"] + "(){"
+            program += TYPE_CONVERSIONS[ast["globals"][key]["return"]] + " " + ast["globals"][key]["name"] + "("
+            for ty in ast["globals"][key]["args"]:
+                program += TYPE_CONVERSIONS[ty["type"]] + " " + ty["name"] + ","
+            if len(ast["globals"][key]["args"]) > 0:
+                program = program[:-1]
+            program += "){"
             # try:
             recursive_convert(["globals", key, "body"])
             # except Exception as e:
             #     print(e)
             program += "\n}\n"
+        if ast["globals"][key]["act"] == "glbdef":
+            program += TYPE_CONVERSIONS[ast["globals"][key]["type"]] + ast["globals"][key]["name"] + "="
+            recursive_convert(["globals", key, "body"])
+
 
     with open(save_prefix_comp + "/program.c", "w") as f:
         f.write(program)
-    os.system("tcc -o " + save_prefix_comp + "/program.o -g " + save_prefix_comp + "/program.c -lm")
+    os.system("tcc -o " + save_prefix_comp + "/program.out -g " + save_prefix_comp + "/program.c -lm")
 
 saveprefix = "testc/"
 programs = os.listdir('testout/tests/')

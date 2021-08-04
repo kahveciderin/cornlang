@@ -1,4 +1,4 @@
 fun main => none {
     var lstvar 3 str foo = ["foo", "baz", "bar"]
-    println(foo[0][1])
+    println("$c".fmt(foo[0][1]))
 }
