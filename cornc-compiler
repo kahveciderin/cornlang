@@ -46,28 +46,26 @@ def compile_program(prog_name, saveprefix):
         between = (";" if parse_mode == 0 else between)
         nonlocal program
         local_ast = get_ast_scope(scope)
-        inner_type = -1
+        aftvar = ""
         if parse_mode == 2: # parse types
             for index, elem in enumerate(local_ast):
                 if elem["act"] == "statement": # parse recursively
-                    a = recursive_convert(scope + [index, "type"], recursion + 1, 2)
+                    aftvar += recursive_convert(scope + [index, "type"], recursion + 1, 2)
                     if elem["name"] == "ptrvar":
                         add_to_program("*", recursion=recursion, mode=2)
-                        return a
+                        return ""
                     if elem["name"] == "lstvar":
-                        return "[" + str(elem["len"]) + "]"
+                        # add_to_program("[" + str(elem["len"]) + "]")
+                        return "[" + str(elem["len"]) + "]" + aftvar
                 else:
                     add_to_program(TYPE_CONVERSIONS[elem["type"]], recursion=recursion, mode=2)
-                    # if elem["type"] == "str":
-                    #     add_to_program('*')
-                    inner_type = elem["type"]
-            return "[]" if inner_type == 'str' else ""
+            return aftvar
 
         for index, elem in enumerate(local_ast):
             # if amount > 0 and index >= amount:
             #     break
             if elem["act"] == "vardef":
-                add_to_program(" " + elem["name"] + recursive_convert(scope + [index, "type"], recursion=recursion + 1, parse_mode=2) +  " = ", mode = 2, recursion = recursion + 1)
+                add_to_program(" " + elem["name"] + recursive_convert(scope + [index, "type"], recursion = recursion + 1, parse_mode = 2) + " = ", recursion = recursion)
                 recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
                 end_program_line()
             elif elem["act"] == "const":
@@ -100,6 +98,11 @@ def compile_program(prog_name, saveprefix):
                     add_to_program("{")
                     recursive_convert(scope + [index, "body"], parse_mode = 0, recursion = recursion + 1, amount = 1)
                     add_to_program("}")
+
+                    if elem["name"] == "if":
+                        add_to_program(" else {")
+                        recursive_convert(scope + [index, "else_body"], parse_mode = 0, recursion = recursion + 1, amount = 1)
+                        add_to_program("}")
                 else:
                     add_to_program(between)
             elif elem["act"] == "oper":
@@ -110,10 +113,14 @@ def compile_program(prog_name, saveprefix):
                     add_to_program(elem["name"] + between)
             elif elem["act"] == "call":
                 add_to_program(elem["name"])
-                add_to_program("(")
-                recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
-                add_to_program(")")
-                add_to_program(between)
+                if len(get_ast_scope(scope + [index, "args"])) == 0:
+                    add_to_program("()")
+                    add_to_program(between)
+                else:
+                    add_to_program("(")
+                    recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
+                    add_to_program(")")
+                    add_to_program(between)
             elif elem["act"] == "varset":
                 add_to_program(elem["name"] + elem["oper"])
                 recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
@@ -134,6 +141,11 @@ def compile_program(prog_name, saveprefix):
                 recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
                 add_to_program(')')
                 add_to_program(between)
+            elif elem["act"] == "varop":
+                if elem["name"] == "ptr":
+                    add_to_program("&" + elem["var"] + between)
+                if elem["name"] == "deref":
+                    add_to_program("*" + elem["var"] + between)
         if parse_mode == 1:
             program = program[:-len(between)]     
     for key in ast["globals"]:

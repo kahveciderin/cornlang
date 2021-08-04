@@ -4,5 +4,5 @@ fun function_a => i5 {
 
 fun main => none {
     var i5 num = function_a()
-    println(num)
+    println("$n".fmt(num))
 }

@@ -1,5 +1,5 @@
 fun main => none {
-    var str foo = "foo" + "bar" + "buzz"
+    var str foo = "foo"
     println(foo)
     var i5 a = 123
     a += 765
@@ -13,5 +13,5 @@ fun main => none {
     println("$n".fmt(a))
 
     var f c = 1.234
-    println(c)
+    println("$f".fmt(c))
 }

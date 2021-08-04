@@ -251,6 +251,14 @@ def compile_program(program, saveprefix):
                     print("STATEMENT WITH BODY", token["token"])
                     new_scope = scope + [len(get_ast_scope(scope)) - 1, 'body']
                     itt = lex_scope(copy.copy(new_scope), itt)
+
+                    if token["token"] == "if":
+                        incr_itt()
+                        set_ast_scope(scope + [len(get_ast_scope(scope)) - 1, 'else_body'], [])
+                        if tokens[itt]["token"] == 'else':
+                            itt = lex_scope(scope + [len(get_ast_scope(scope)) - 1, 'else_body'], itt)
+                        else:
+                            itt-=1
                 elif token["token"] == 'ptr':
                     incr_itt()
                     append_ast_scope(scope, {

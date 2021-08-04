@@ -32,7 +32,7 @@ char *fmt(char *self, ...)
             case 's':
             {
                 char *arg = va_arg(args, char *);
-                result = realloc(result, (strlen(arg) + strlen(result) + 1) * sizeof(char));
+                result = (char*)realloc(result, (strlen(arg) + strlen(result) + 1) * sizeof(char));
                 strcat(result, arg);
                 break;
             }
@@ -40,20 +40,20 @@ char *fmt(char *self, ...)
             {
                 int arg = va_arg(args, int);
                 char str[(int)(arg == 0 ? 1 : floor(log10(abs(arg))) + 2)];
-                result = realloc(result, ((int)(arg == 0 ? 1 : floor(log10(abs(arg))) + 2) + strlen(result))  * sizeof(char));
+                result = (char*)realloc(result, ((int)(arg == 0 ? 1 : floor(log10(abs(arg))) + 2) + strlen(result))  * sizeof(char));
                 sprintf(str, "%d", arg);
                 strcat(result, str);
                 break;
             }
             case '$':{
-                result = realloc(result, (strlen(result) + 2) * sizeof(char));
+                result = (char*)realloc(result, (strlen(result) + 2) * sizeof(char));
                 strcat(result, "$");
                 break;
             }
             case 'f':{
                 float arg = va_arg(args, float);
                 char str[25] = "";
-                result = realloc(result, 25 + strlen(result)  * sizeof(char));
+                result = (char*)realloc(result, 25 + strlen(result)  * sizeof(char));
                 sprintf(str, "%f", arg);
                 strcat(result, str);
                 break;
@@ -66,7 +66,7 @@ char *fmt(char *self, ...)
             }
             }
         }else{
-            result = realloc(result, (strlen(result) + 2) * sizeof(char));
+            result = (char*)realloc(result, (strlen(result) + 2) * sizeof(char));
             strncat(result, self, 1);
         }
         ++self;
