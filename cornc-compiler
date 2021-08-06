@@ -17,7 +17,7 @@ def compile_program(prog_name, saveprefix):
         'i0': "bool",
         'i1': "",
         'i2': "",
-        'i3': "byte",
+        'i3': "char",
         'i4': "word",
         'i5': "int",
         'i6': "long",
@@ -65,8 +65,10 @@ def compile_program(prog_name, saveprefix):
             # if amount > 0 and index >= amount:
             #     break
             if elem["act"] == "vardef":
-                add_to_program(" " + elem["name"] + recursive_convert(scope + [index, "type"], recursion = recursion + 1, parse_mode = 2) + " = ", recursion = recursion)
-                recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
+                add_to_program(" " + elem["name"] + recursive_convert(scope + [index, "type"], recursion = recursion + 1, parse_mode = 2), recursion = recursion)
+                if len(elem["args"]) > 0:
+                    add_to_program(' = ', recursion=recursion)
+                    recursive_convert(scope + [index, "args"], parse_mode = 1, recursion = recursion + 1)
                 end_program_line()
             elif elem["act"] == "const":
                 if elem["type"] == "number":

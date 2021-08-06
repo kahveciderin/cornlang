@@ -312,10 +312,13 @@ def compile_program(program, saveprefix):
                     incr_itt()
                     incr_itt()
 
-                    set_ast_scope(scope + [len(get_ast_scope(scope)) - 1], og_scope)
-                    new_scope = scope + \
-                        [len(get_ast_scope(scope)) - 1, 'args']
-                    itt = lex_scope(new_scope, itt, '()', 2)
+                    if '=' in tokens[itt]["token"]:
+                        set_ast_scope(scope + [len(get_ast_scope(scope)) - 1], og_scope)
+                        new_scope = scope + \
+                            [len(get_ast_scope(scope)) - 1, 'args']
+                        itt = lex_scope(new_scope, itt, '()', 2)
+                    else:
+                        itt-=1
                 elif token["token"] in ["ptrvar", "lstvar"]:
                     lst_len = -1
                     if token["token"] == "lstvar":

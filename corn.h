@@ -4,12 +4,33 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <time.h>
 
 #define foreach(b,a) for(int a=0;a<(sizeof(b)/sizeof(b[0]));a++)
+#define arr_set_index(arr, ix, val) (arr[ix] = val)
+#define init_arr(arr, count, value) for(int i=0;i<count;i++) arr[i] = value
 
 void println(char *value);
 void print(char *value);
 char *fmt(char *self, ...);
+char inchar();
+int to_int(char *value);
+int rand_range(int min_n, int max_n);
+void rand_start();
+
+void rand_start(){
+    srand(time(NULL));
+} 
+int rand_range(int min_n, int max_n)
+{
+    return rand() % (max_n - min_n + 1) + min_n;
+}
+int to_int(char *value){
+    return atoi(value);
+}
+char inchar(){
+    return getchar();
+}
 void print(char *value){
     printf("%s", value);
 }
